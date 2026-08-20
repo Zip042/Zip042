@@ -12,7 +12,7 @@ const STAGE_ITEMS: Record<string, ChecklistItem[]> = {
     {
       id: "issued",
       label: "등기부등본을 직접 발급받았다",
-      note: "중개인이 보여주는 사본은 날짜가 오래됐을 수 있습니다.",
+      note: "중개인이 보여주는 사본은 날짜가 오래됐을 수 있습니다. 계약 당일에 다시 확인하세요.",
       required: true,
     },
     {
@@ -39,72 +39,95 @@ export default function Checklist() {
   const items = STAGE_ITEMS[activeStage];
 
   return (
-    <div className="mx-auto grid max-w-4xl grid-cols-1 gap-0 px-6 py-10 md:grid-cols-[180px_1fr]">
-      <aside className="flex flex-col gap-1.5 border-b border-border pb-6 md:border-b-0 md:border-r md:pr-4 md:pb-0">
-        <p className="mb-1 text-sm font-bold">진행 단계</p>
-        {STAGES.map((stage) => (
-          <button
-            key={stage}
-            type="button"
-            onClick={() => setActiveStage(stage)}
-            className={
-              stage === activeStage
-                ? "rounded-md bg-foreground px-3 py-2 text-left text-sm text-background"
-                : "rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-muted"
-            }
-          >
-            {stage}
-          </button>
-        ))}
-        <div className="mt-4 border-t border-border pt-3">
-          <p className="text-xs text-muted-foreground">
-            전체 진행률 {doneCount}/{allItems.length}
-          </p>
-          <Progress
-            value={(doneCount / allItems.length) * 100}
-            className="mt-2"
-            indicatorClassName="bg-brand-secondary"
-          />
+    <div className="border-b border-border bg-background-alt">
+      <div className="mx-auto max-w-6xl px-8 py-14">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-[30px] font-black tracking-tight">계약 단계별 체크리스트</h1>
+            <p className="mt-2 text-sm text-muted-foreground-light">
+              체크한 내용은 저장되고, PDF로 뽑아서 계약장에 가져갈 수 있습니다.
+            </p>
+          </div>
+          <Button variant="outline" className="rounded-[11px] border-border-strong bg-white">
+            체크리스트 인쇄
+          </Button>
         </div>
-      </aside>
 
-      <div className="flex flex-col gap-3 md:pl-6">
-        <h1 className="font-display text-lg font-bold">{activeStage}</h1>
-        <p className="text-sm text-muted-foreground">체크한 내용은 저장되고, PDF로 뽑아 갈 수 있습니다.</p>
-
-        {items.map((item) => {
-          const isChecked = !!checked[item.id];
-          return (
-            <label
-              key={item.id}
-              className={
-                isChecked
-                  ? "flex items-start gap-3 rounded-lg border border-brand-secondary-light bg-brand-secondary-light p-3"
-                  : item.required
-                    ? "flex items-start gap-3 rounded-lg border border-brand-primary-light bg-brand-primary-light p-3"
-                    : "flex items-start gap-3 rounded-lg border border-border p-3"
-              }
-            >
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={(value) =>
-                  setChecked((prev) => ({ ...prev, [item.id]: value === true }))
-                }
-                className="mt-0.5 data-[state=checked]:border-brand-secondary data-[state=checked]:bg-brand-secondary"
-              />
-              <div>
-                <p className={isChecked ? "text-sm text-muted-foreground line-through" : "text-sm font-bold"}>
-                  {item.label} {item.required && <span className="text-brand-primary">필수</span>}
-                </p>
-                {item.note && <p className="mt-1 text-xs text-muted-foreground">{item.note}</p>}
+        <div className="mt-7 grid grid-cols-1 items-start gap-7 md:grid-cols-[240px_1fr]">
+          <aside className="rounded-2xl border border-border bg-white p-4.5">
+            <div className="flex flex-col gap-1.5">
+              {STAGES.map((stage, i) => (
+                <button
+                  key={stage}
+                  type="button"
+                  onClick={() => setActiveStage(stage)}
+                  className={
+                    stage === activeStage
+                      ? "rounded-[10px] bg-brand-primary px-3.5 py-3 text-left text-sm font-bold text-white"
+                      : "rounded-[10px] px-3.5 py-3 text-left text-sm text-muted-foreground hover:bg-background-alt"
+                  }
+                >
+                  {i + 1} · {stage}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4.5 border-t border-border pt-4">
+              <div className="flex justify-between text-[13px]">
+                <span className="text-muted-foreground-light">전체 진행률</span>
+                <span className="font-bold text-brand-primary">
+                  {doneCount} / {allItems.length}
+                </span>
               </div>
-            </label>
-          );
-        })}
+              <Progress value={(doneCount / allItems.length) * 100} className="mt-2.5 bg-border" />
+            </div>
+          </aside>
 
-        <div className="mt-auto flex gap-3 pt-4">
-          <Button className="bg-brand-secondary hover:bg-brand-secondary-hover">다음 단계로</Button>
-          <Button variant="outline">체크리스트 인쇄</Button>
+          <div className="flex flex-col gap-3">
+            {items.map((item) => {
+              const isChecked = !!checked[item.id];
+              return (
+                <label
+                  key={item.id}
+                  className={
+                    isChecked
+                      ? "flex items-center gap-3.5 rounded-2xl border border-border bg-white p-5"
+                      : item.required
+                        ? "flex gap-3.5 rounded-2xl border border-danger-border bg-white p-5"
+                        : "flex items-center gap-3.5 rounded-2xl border border-border bg-white p-5"
+                  }
+                >
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={(value) => setChecked((prev) => ({ ...prev, [item.id]: value === true }))}
+                    className={
+                      item.required && !isChecked
+                        ? "size-5.5 rounded-[6px] border-2 border-danger data-[state=checked]:border-brand-primary data-[state=checked]:bg-brand-primary"
+                        : "size-5.5 rounded-[6px] data-[state=checked]:border-brand-primary data-[state=checked]:bg-brand-primary"
+                    }
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className={isChecked ? "text-base font-medium text-placeholder line-through" : "text-base font-bold"}>
+                        {item.label}
+                      </p>
+                      {item.required && (
+                        <span className="rounded-md bg-danger px-2 py-0.5 text-[11px] font-bold text-white">
+                          필수
+                        </span>
+                      )}
+                    </div>
+                    {item.note && !isChecked && (
+                      <p className="mt-1 text-[13px] text-muted-foreground">{item.note}</p>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+
+            <div className="mt-1.5 flex justify-end">
+              <Button className="rounded-[11px] bg-brand-primary px-6 hover:bg-brand-primary-hover">다음 단계로</Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

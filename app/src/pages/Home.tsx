@@ -1,108 +1,114 @@
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-
-const STEPS = [
-  { n: "1", title: "서류 올리기", desc: "등기부등본 PDF 업로드" },
-  { n: "2", title: "자동 분석", desc: "권리관계·시세 대조" },
-  { n: "3", title: "위험 리포트", desc: "항목별 판정과 대처법" },
-];
 
 const RISKS = [
-  { level: "위험", text: "깡통전세 · 전세가율 90% 이상" },
-  { level: "위험", text: "이중계약 · 대리인 위임장 위조" },
-  { level: "사례", text: "신탁등기 물건 계약" },
+  { title: "깡통전세", desc: "전세가율 90% 이상", danger: true },
+  { title: "이중계약 · 위임장 위조", desc: "대리인 계약", danger: true },
+  { title: "신탁등기 물건 계약", desc: "신탁회사 동의 필요", danger: false },
 ];
 
-const SAFE_TIPS = [
-  { level: "확인", text: "전입신고 + 확정일자" },
-  { level: "확인", text: "등기부 = 집주인 = 계좌주 일치" },
-  { level: "확인", text: "전세보증금 반환보증 가입" },
+const ESSENTIALS = [
+  { n: "01", title: "전입신고 + 확정일자", desc: "잔금 치른 당일" },
+  { n: "02", title: "등기부 소유자 = 계약자 = 계좌주", desc: "다르면 송금 금지" },
+  { n: "03", title: "보증금 반환보증 가입", desc: "계약 전 가입 가능 여부 확인" },
 ];
 
 export default function Home() {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <section className="grid grid-cols-1 gap-8 border-b border-border pb-10 md:grid-cols-[1fr_280px]">
-        <div className="flex flex-col gap-4">
-          <h1 className="font-display text-3xl font-extrabold leading-snug md:text-4xl">
-            계약서에 도장 찍기 전,
+    <div className="border-b border-border">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-8 py-20 md:grid-cols-[1.15fr_0.85fr]">
+        <div>
+          <h1 className="font-display text-4xl font-black leading-tight tracking-tight md:text-5xl">
+            도장 찍기 전에,
             <br />
-            <span className="text-brand-primary">30초 만에 위험 확인</span>
+            등기부가 말하는
+            <br />
+            <span className="text-danger">위험</span>을 먼저 보세요
           </h1>
-          <p className="text-muted-foreground">
-            등기부등본을 올리면 근저당·가압류·전세가율을 자동으로 짚어드립니다.
+          <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground">
+            등기부등본을 올리면 근저당·가압류·전세가율을 확인해 드립니다.
           </p>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button asChild size="lg" className="bg-brand-primary hover:bg-brand-primary-hover">
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button asChild size="lg" className="rounded-xl bg-brand-primary px-7 hover:bg-brand-primary-hover">
               <Link to="/analyze">등기부등본 분석하기</Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="rounded-xl border-border-strong">
               <Link to="/checklist">체크리스트 먼저 보기</Link>
             </Button>
           </div>
+          <div className="mt-9 flex gap-7 text-sm text-muted-foreground-light">
+            <span>분석 28초</span>
+            <span>파일은 분석 후 즉시 삭제</span>
+          </div>
         </div>
-        <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border bg-muted text-sm text-muted-foreground">
-          일러스트 / 이미지 자리
-        </div>
-      </section>
 
-      <section className="border-b border-border py-10">
-        <h2 className="mb-4 font-display text-lg font-bold">이렇게 확인합니다</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {STEPS.map((step) => (
-            <Card key={step.n} className="border-border">
-              <CardContent className="pt-6">
-                <p className="font-bold">
-                  {step.n} · {step.title}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">{step.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="rounded-2xl border border-border bg-white p-6">
+          <p className="text-xs font-bold tracking-wide text-muted-foreground-light">리포트 미리보기</p>
+          <div className="mt-4 flex items-center gap-3.5 rounded-2xl border border-danger-border bg-white p-4.5">
+            <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-full border-[3px] border-danger text-danger">
+              <span className="font-display text-lg font-black leading-none">위험</span>
+              <span className="text-[10px]">3 / 5</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-danger">전세가율 108%</p>
+              <p className="mt-1 text-xs text-muted-foreground-light">선순위 채권이 시세를 넘습니다</p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2.5 rounded-[10px] border border-border px-3.5 py-3 text-sm">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />
+              근저당권 2건 설정
+            </div>
+            <div className="flex items-center gap-2.5 rounded-[10px] border border-border px-3.5 py-3 text-sm">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />
+              소유권 이전 3개월 이내
+            </div>
+            <div className="flex items-center gap-2.5 rounded-[10px] border border-border px-3.5 py-3 text-sm text-muted-foreground">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-primary" />
+              가압류·경매 기입등기 없음
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section className="grid grid-cols-1 gap-8 py-10 md:grid-cols-2">
-        <div>
-          <h2 className="mb-3 font-display text-lg font-bold">요즘 많이 당하는 수법</h2>
-          <ul className="flex flex-col gap-2">
-            {RISKS.map((risk, i) => (
-              <li
-                key={i}
-                className={
-                  risk.level === "위험"
-                    ? "flex items-center gap-2 rounded-md border-l-4 border-brand-primary bg-brand-primary-light px-3 py-2 text-sm"
-                    : "flex items-center gap-2 rounded-md border-l-4 border-border bg-muted px-3 py-2 text-sm"
-                }
-              >
-                <span
+      <div className="mx-auto max-w-6xl px-8 pb-16">
+        <div className="grid grid-cols-1 gap-14 border-t border-border pt-11 md:grid-cols-2">
+          <div>
+            <h2 className="font-display text-xl font-extrabold">요즘 많이 당하는 수법</h2>
+            <div className="mt-4 flex flex-col gap-2.5">
+              {RISKS.map((risk) => (
+                <div
+                  key={risk.title}
                   className={
-                    risk.level === "위험" ? "font-bold text-brand-primary" : "text-muted-foreground"
+                    risk.danger
+                      ? "rounded-r-[10px] border-l-[3px] border-danger px-4 py-3.5"
+                      : "border-l-[3px] border-border px-4 py-3.5"
                   }
                 >
-                  {risk.level}
-                </span>
-                <span>{risk.text}</span>
-              </li>
-            ))}
-          </ul>
+                  <p className={risk.danger ? "text-sm font-bold text-danger" : "text-sm font-bold"}>
+                    {risk.title}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">{risk.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-extrabold">사회초년생 필수 3가지</h2>
+            <div className="mt-4 flex flex-col gap-2.5">
+              {ESSENTIALS.map((item) => (
+                <div key={item.n} className="flex gap-3 rounded-[10px] border border-border px-4 py-3.5">
+                  <span className="font-display font-black text-brand-primary">{item.n}</span>
+                  <div>
+                    <p className="text-sm font-bold">{item.title}</p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="mb-3 font-display text-lg font-bold">사회초년생 필수 3가지</h2>
-          <ul className="flex flex-col gap-2">
-            {SAFE_TIPS.map((tip, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-2 rounded-md border-l-4 border-brand-secondary bg-brand-secondary-light px-3 py-2 text-sm"
-              >
-                <span className="font-bold text-brand-secondary">{tip.level}</span>
-                <span>{tip.text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
