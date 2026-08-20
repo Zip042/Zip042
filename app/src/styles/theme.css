@@ -13,6 +13,7 @@
   --danger: #C0303A;
   --danger-text: #8F2730;
   --danger-bg: #FFFFFF;
+  --danger-light: #FDECEC;
   --danger-border: #FECACA;
 
   /* Neutral */
@@ -80,6 +81,7 @@
   --color-danger: var(--danger);
   --color-danger-text: var(--danger-text);
   --color-danger-bg: var(--danger-bg);
+  --color-danger-light: var(--danger-light);
   --color-danger-border: var(--danger-border);
 
   --radius-sm: calc(var(--radius) - 4px);

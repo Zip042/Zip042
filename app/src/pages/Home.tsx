@@ -2,9 +2,9 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 
 const RISKS = [
-  { title: "깡통전세", desc: "전세가율 90% 이상", danger: true },
-  { title: "이중계약 · 위임장 위조", desc: "대리인 계약", danger: true },
-  { title: "신탁등기 물건 계약", desc: "신탁회사 동의 필요", danger: false },
+  { title: "깡통전세", desc: "전세가율 90% 이상" },
+  { title: "이중계약 · 위임장 위조", desc: "대리인 계약" },
+  { title: "신탁등기 물건 계약", desc: "신탁회사 동의 필요" },
 ];
 
 const ESSENTIALS = [
@@ -79,15 +79,9 @@ export default function Home() {
               {RISKS.map((risk) => (
                 <div
                   key={risk.title}
-                  className={
-                    risk.danger
-                      ? "rounded-r-[10px] border-l-[3px] border-danger px-4 py-3.5"
-                      : "border-l-[3px] border-border px-4 py-3.5"
-                  }
+                  className="rounded-r-[10px] border-l-[3px] border-danger bg-danger-light px-4 py-3.5"
                 >
-                  <p className={risk.danger ? "text-sm font-bold text-danger" : "text-sm font-bold"}>
-                    {risk.title}
-                  </p>
+                  <p className="text-sm font-bold text-danger">{risk.title}</p>
                   <p className="mt-0.5 text-[13px] text-muted-foreground">{risk.desc}</p>
                 </div>
               ))}
@@ -97,7 +91,10 @@ export default function Home() {
             <h2 className="font-display text-xl font-extrabold">사회초년생 필수 3가지</h2>
             <div className="mt-4 flex flex-col gap-2.5">
               {ESSENTIALS.map((item) => (
-                <div key={item.n} className="flex gap-3 rounded-[10px] border border-border px-4 py-3.5">
+                <div
+                  key={item.n}
+                  className="flex gap-3 rounded-r-[10px] border-l-[3px] border-brand-primary bg-brand-primary-light px-4 py-3.5"
+                >
                   <span className="font-display font-black text-brand-primary">{item.n}</span>
                   <div>
                     <p className="text-sm font-bold">{item.title}</p>
