@@ -1,0 +1,113 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+
+  /* Brand — general UI (nav, CTAs, links, progress, positive actions) */
+  --brand-primary: #C0404A;
+  --brand-primary-hover: #A83540;
+  --brand-primary-light: #FDECED;
+  --brand-secondary: #2A8C5F;
+  --brand-secondary-hover: #22754E;
+  --brand-secondary-light: #E6F5EE;
+
+  /* Semantic — reserved for /analyze/result only, independent of brand */
+  --semantic-safe: #059669;
+  --semantic-safe-bg: #ECFDF5;
+  --semantic-safe-border: #A7F3D0;
+  --semantic-caution: #D97706;
+  --semantic-caution-bg: #FFFBEB;
+  --semantic-caution-border: #FDE68A;
+  --semantic-danger: #EF4444;
+  --semantic-danger-bg: #FEF2F2;
+  --semantic-danger-border: #FECACA;
+
+  /* Neutral */
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --muted: #F5F5F5;
+  --muted-foreground: #767676;
+  --border: #E5E5E5;
+  --input: transparent;
+  --input-background: #FFFFFF;
+
+  /* shadcn slot mapping — brand primary drives interactive elements */
+  --primary: var(--brand-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--brand-primary-light);
+  --secondary-foreground: var(--brand-primary);
+  --accent: var(--brand-primary-light);
+  --accent-foreground: var(--brand-primary);
+  --destructive: var(--semantic-danger);
+  --destructive-foreground: #FFFFFF;
+  --ring: var(--brand-primary);
+
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-hover: var(--brand-secondary-hover);
+  --color-brand-secondary-light: var(--brand-secondary-light);
+
+  --color-semantic-safe: var(--semantic-safe);
+  --color-semantic-safe-bg: var(--semantic-safe-bg);
+  --color-semantic-safe-border: var(--semantic-safe-border);
+  --color-semantic-caution: var(--semantic-caution);
+  --color-semantic-caution-bg: var(--semantic-caution-bg);
+  --color-semantic-caution-border: var(--semantic-caution-border);
+  --color-semantic-danger: var(--semantic-danger);
+  --color-semantic-danger-bg: var(--semantic-danger-bg);
+  --color-semantic-danger-border: var(--semantic-danger-border);
+
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: 'Noto Sans KR', system-ui, sans-serif;
+  --font-display: 'Nunito', 'Noto Sans KR', sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
