@@ -1,0 +1,109 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+
+  /* Brand — green is the primary action/identity color everywhere */
+  --brand-primary: #2A8C5F;
+  --brand-primary-hover: #22754E;
+  --brand-primary-light: #E6F5EE;
+  --brand-primary-border: #A7D8C0;
+
+  /* Danger/warning — the only other accent color, used for risk states */
+  --danger: #C0303A;
+  --danger-text: #8F2730;
+  --danger-bg: #FFFFFF;
+  --danger-light: #FDECEC;
+  --danger-border: #FECACA;
+
+  /* Neutral */
+  --background: #FFFFFF;
+  --background-alt: #F7F9F8;
+  --foreground: #14201A;
+  --card: #FFFFFF;
+  --card-foreground: #14201A;
+  --popover: #FFFFFF;
+  --popover-foreground: #14201A;
+  --muted: #F7F9F8;
+  --muted-foreground: #4B5A52;
+  --muted-foreground-light: #6B7A72;
+  --placeholder: #9AA8A0;
+  --border: rgba(20, 32, 26, 0.10);
+  --border-strong: rgba(20, 32, 26, 0.18);
+  --input: rgba(20, 32, 26, 0.16);
+  --input-background: #FFFFFF;
+
+  /* shadcn slot mapping */
+  --primary: var(--brand-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--brand-primary-light);
+  --secondary-foreground: var(--brand-primary);
+  --accent: var(--brand-primary-light);
+  --accent-foreground: var(--brand-primary);
+  --destructive: var(--danger);
+  --destructive-foreground: #FFFFFF;
+  --ring: var(--brand-primary);
+
+  --radius: 0.875rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-alt: var(--background-alt);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-light: var(--muted-foreground-light);
+  --color-placeholder: var(--placeholder);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-primary-border: var(--brand-primary-border);
+
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-light: var(--danger-light);
+  --color-danger-border: var(--danger-border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  --font-sans: 'Noto Sans KR', system-ui, sans-serif;
+  --font-display: 'Nunito', 'Noto Sans KR', sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
