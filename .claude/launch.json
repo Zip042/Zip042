@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "design-guide",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "design-guide", "run", "dev", "--", "--port", "5183", "--strictPort"],
+      "port": 5183,
+      "autoPort": false
+    }
+  ]
+}
