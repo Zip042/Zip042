@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
-import Logo from "./Logo";
+import mainImage from "@/assets/MainImage.jpg";
 
 const NAV_ITEMS = [
   { label: "등기부 분석", to: "/analyze" },
@@ -16,7 +16,7 @@ export default function Layout() {
       <header className="sticky top-0 z-20 border-b border-border bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-9 px-6">
           <Link to="/" className="flex items-center gap-2">
-            <Logo size={30} />
+            <img src={mainImage} alt="Zip042" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
             <span className="font-display text-xl font-black tracking-tight text-brand-primary">
               Zip042
             </span>
