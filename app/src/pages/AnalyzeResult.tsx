@@ -18,7 +18,9 @@ export default function AnalyzeResult() {
         <div className="mx-auto flex max-w-6xl items-center gap-7 px-8 py-10">
           <div className="flex h-[132px] w-[132px] shrink-0 flex-col items-center justify-center rounded-full border-[5px] border-danger text-danger">
             <span className="font-display text-3xl font-black leading-none">위험</span>
-            <span className="mt-1 text-sm font-bold">5개 중 3개 항목</span>
+            <span className="mt-1 text-sm font-bold">
+              {RISK_ITEMS.length}개 중 {dangerCount}개 항목
+            </span>
           </div>
           <div className="flex-1">
             <p className="text-sm font-bold text-danger-text">
