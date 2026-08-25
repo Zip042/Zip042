@@ -28,7 +28,9 @@ const CHECK_ITEMS = [
 ];
 
 const ACCEPTED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 20 * 1024 * 1024;
+// 서버 한도와 같은 값이어야 한다. 더 크게 두면 화면은 통과시키고 서버가 거절해
+// 사용자는 이유를 알 수 없다. (base64 로 1.33배 부풀기 때문에 10MB 다.)
+const MAX_BYTES = 10 * 1024 * 1024;
 
 type Phase = "idle" | "uploading" | "analyzing" | "done";
 
@@ -52,7 +54,7 @@ export default function Analyze() {
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError("파일이 너무 큽니다. 20MB 이하로 올려주세요.");
+      setError("파일이 너무 큽니다. 10MB 이하로 올려주세요.");
       return;
     }
 
@@ -142,7 +144,15 @@ export default function Analyze() {
           <div>
             <h1 className="font-display text-3xl font-black tracking-tight">등기부등본을 올려주세요</h1>
             <p className="mt-2 text-sm text-muted-foreground-light">
-              인터넷등기소에서 발급한 열람본이면 됩니다. PDF · 20MB 이하.
+              인터넷등기소에서 발급한 열람본이면 됩니다. PDF · 10MB 이하.
+            </p>
+            {/*
+              말소된 권리를 애초에 안 받는 것이 가장 확실한 방어다. 서버도 말소 등기를
+              코드로 걸러내지만, 취소선은 글자가 아니라 판독이 놓칠 수 있다.
+            */}
+            <p className="mt-1 text-sm text-brand-primary">
+              발급할 때 <strong className="font-bold">"현재 유효사항만"</strong> 을 선택하면 판독이 더
+              정확합니다. 말소사항이 포함돼 있어도 걸러내지만, 처음부터 없는 편이 낫습니다.
             </p>
 
             <div
