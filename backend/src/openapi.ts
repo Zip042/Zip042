@@ -563,6 +563,7 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
       { name: "schedule", description: "일정 가공 · 타임라인" },
       { name: "interview", description: "대화형 후속 질문" },
       { name: "special-terms", description: "특약 추천" },
+      { name: "contract-draft", description: "계약서 초안" },
       { name: "region", description: "지역 위험 레이어" },
       { name: "home", description: "홈 요약 · 알림" },
       { name: "checklist", description: "계약 단계별 체크리스트" },
@@ -1220,6 +1221,17 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
             properties: { codes: { type: "array", items: { type: "string" }, maxItems: 30 } },
           }),
           responses: { "200": jsonResponse("조립된 문구", { type: "object" }), ...errorResponses },
+        },
+      },
+      "/v1/cases/{caseId}/contract-draft": {
+        get: {
+          tags: ["contract-draft"],
+          summary: "표준임대차계약서 자동완성 초안",
+          description:
+            "이미 수집된 등기부·확인설명서 데이터와 추천 특약으로 국토교통부 표준계약서 " +
+            "항목을 채운 초안입니다. 법률 자문이 아닙니다.",
+          parameters: [caseIdParam],
+          responses: { "200": jsonResponse("계약서 초안", { type: "object" }), ...errorResponses },
         },
       },
       "/v1/region/risk": {

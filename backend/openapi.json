@@ -44,6 +44,10 @@
       "description": "특약 추천"
     },
     {
+      "name": "contract-draft",
+      "description": "계약서 초안"
+    },
+    {
       "name": "region",
       "description": "지역 위험 레이어"
     },
@@ -4498,6 +4502,78 @@
         "responses": {
           "200": {
             "description": "조립된 문구",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력값 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "대상 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "요청 제한 초과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cases/{caseId}/contract-draft": {
+      "get": {
+        "tags": [
+          "contract-draft"
+        ],
+        "summary": "표준임대차계약서 자동완성 초안",
+        "description": "이미 수집된 등기부·확인설명서 데이터와 추천 특약으로 국토교통부 표준계약서 항목을 채운 초안입니다. 법률 자문이 아닙니다.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "계약서 초안",
             "content": {
               "application/json": {
                 "schema": {

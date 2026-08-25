@@ -21,6 +21,7 @@ import { interviewRoute } from "./routes/interview.js";
 import { regionRoute } from "./routes/region.js";
 import { scheduleRoute } from "./routes/schedule.js";
 import { termsCatalogRoute, termsRoute } from "./routes/terms.js";
+import { contractDraftRoute } from "./routes/contract-draft.js";
 import { checklistCatalogRoute, checklistRoute } from "./routes/checklist.js";
 import { glossaryRoute } from "./routes/glossary.js";
 import { isExtractionAvailable } from "./services/extraction.service.js";
@@ -224,6 +225,7 @@ export function createApp() {
   app.route("/v1", checklistRoute);
   // termsRoute 는 /cases/:caseId/... 경로를 직접 선언하므로 /v1 에 붙인다.
   app.route("/v1", termsRoute);
+  app.route("/v1/cases", contractDraftRoute);
   app.route("/v1/admin", adminRoute);
 
   // 개발용 라우터는 목 모드에서만 존재한다. live 모드에서는 404 가 난다.

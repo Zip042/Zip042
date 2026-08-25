@@ -639,6 +639,70 @@ describe("특약 법조문 인용 (compose)", () => {
   });
 });
 
+describe("계약서 초안", () => {
+  it("등기부 판독 없이도 기본 특약으로 초안을 만든다", async () => {
+    const created = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        title: "계약서 초안 확인",
+        roadAddress: "대전광역시 서구 둔산로 100",
+        detailAddress: "301호",
+        leaseType: "jeonse",
+        amountUnit: "man",
+        deposit: 9000,
+        contractDate: "2026-09-10",
+        balanceDate: "2026-10-08",
+      }),
+    });
+    const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+
+    const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
+    expect(res.status).toBe(200);
+
+    const body = await json<{
+      draft: {
+        propertyDescription: string;
+        specialTerms: { code: string; legalBasisLabels: string[] }[];
+        standardFormUrl: string;
+        rentHomeNotice: { linkUrl: string };
+        disclaimer: string;
+      };
+    }>(res);
+
+    expect(body.draft.propertyDescription).toBe("대전광역시 서구 둔산로 100 301호");
+    expect(body.draft.specialTerms.length).toBeGreaterThan(0);
+    const withCitation = body.draft.specialTerms.find(
+      (t) => t.code === "TERM_NO_NEW_ENCUMBRANCE",
+    );
+    expect(withCitation?.legalBasisLabels).toEqual(["주택임대차보호법 제3조"]);
+    expect(body.draft.standardFormUrl).toContain("law.go.kr");
+    expect(body.draft.rentHomeNotice.linkUrl).toBe("https://www.renthome.go.kr");
+    expect(body.draft.disclaimer).toContain("법률 자문이 아니며");
+  });
+
+  it("사업자등록번호가 없으면 진위확인은 not_applicable", async () => {
+    const created = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        title: "개인 임대인",
+        leaseType: "jeonse",
+        amountUnit: "man",
+        deposit: 9000,
+      }),
+    });
+    const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+
+    const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
+    const body = await json<{
+      draft: { parties: { role: string; businessVerification: { source: string } | null }[] };
+    }>(res);
+    const lessor = body.draft.parties.find((p) => p.role === "임대인");
+    expect(lessor?.businessVerification).toBeNull();
+  });
+});
+
 interface AnalysisShape {
   verdict: {
     verdict: string;
