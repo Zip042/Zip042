@@ -48,8 +48,9 @@ beforeAll(async () => {
 
 /**
  * 목 모드의 문서 판독은 항상 시나리오 픽스처(`mock/fixtures.ts`)에서 나오고, 그 어떤
- * 시나리오도 법인 임대인 이름을 갖고 있지 않다 — `looksCorporate()` 분기 전체
- * (not_applicable/unavailable/nts)를 e2e 로 확인하려면 판독 결과에 법인명이 있어야 한다.
+ * 시나리오도 법인 임대인 이름을 갖고 있지 않다 — 사업자등록번호 진위확인 2분기
+ * (not_applicable/unavailable)를 e2e 로 확인하려면 판독 결과에 임대인 이름이 있어야 한다
+ * (법인명이든 개인명이든 — Finding 4 이후로는 사업자등록번호 유무만 결과를 가른다).
  *
  * 공유 시나리오 픽스처를 건드리는 대신(다른 시나리오·`/v1/dev/seed` 기본 동작에 영향을 줄
  * 위험이 있다), `ensureExtractions` 가 재판독 없이 그대로 쓰는 `document_extractions`
@@ -57,10 +58,14 @@ beforeAll(async () => {
  * (`document.service.ts`)가 이미 쓰는 정상 동작이므로, 이 방식은 내부 구현을
  * 우회하는 게 아니라 그 경로를 통해 법인명을 주입하는 것이다.
  */
-async function registerCaseWithLessorName(caseId: string, lessorName: string): Promise<void> {
+async function registerCaseWithLessorName(
+  caseId: string,
+  lessorName: string,
+  headers: Record<string, string> = AUTH,
+): Promise<void> {
   const upRes = await app.request(`/v1/cases/${caseId}/documents/upload-url`, {
     method: "POST",
-    headers: AUTH,
+    headers,
     body: JSON.stringify({
       docType: "lease_draft",
       fileName: "임대차계약서.pdf",
@@ -77,7 +82,7 @@ async function registerCaseWithLessorName(caseId: string, lessorName: string): P
 
   const regRes = await app.request(`/v1/cases/${caseId}/documents`, {
     method: "POST",
-    headers: AUTH,
+    headers,
     body: JSON.stringify({
       docType: "lease_draft",
       storagePath: upload.storagePath,
@@ -756,13 +761,22 @@ describe("계약서 초안", () => {
 
     const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
     const body = await json<{
-      draft: { parties: { role: string; businessVerification: { source: string } | null }[] };
+      draft: {
+        parties: {
+          role: string;
+          businessVerification: { source: string; valid: boolean | null } | null;
+        }[];
+      };
     }>(res);
     const lessor = body.draft.parties.find((p) => p.role === "임대인");
-    expect(lessor?.businessVerification).toBeNull();
+    // Finding 4 이전에는 looksCorporate(lessorName) 이 false 라 이 분기 자체에
+    // 들어가지 않아 businessVerification 이 아예 null 이었다. 지금은 사업자등록번호
+    // 유무만으로 결정하므로, 없으면 not_applicable "객체"를 준다(bare null 이 아니다).
+    expect(lessor?.businessVerification?.source).toBe("not_applicable");
+    expect(lessor?.businessVerification?.valid).toBeNull();
   });
 
-  describe("법인 임대인 — 사업자등록 진위확인 3분기", () => {
+  describe("사업자등록 진위확인 — 사업자등록번호 유무로 결정되는 2분기", () => {
     it("법인 임대인 + 사업자등록번호 미입력 → not_applicable", async () => {
       const created = await app.request("/v1/cases", {
         method: "POST",
@@ -794,7 +808,7 @@ describe("계약서 초안", () => {
       expect(lessor?.businessVerification?.valid).toBeNull();
     });
 
-    it("법인 임대인 + 사업자등록번호는 있으나 계약일이 없음 → unavailable", async () => {
+    it("법인 임대인 + 사업자등록번호 있음 → unavailable (대표자성명·개업일자 필드가 없어 실제 확인 불가)", async () => {
       const created = await app.request("/v1/cases", {
         method: "POST",
         headers: AUTH,
@@ -818,12 +832,17 @@ describe("계약서 초안", () => {
       expect(lessor?.businessVerification?.source).toBe("unavailable");
     });
 
-    it("법인 임대인 + 사업자등록번호 · 계약일 모두 있음 → 국세청 진위확인(mock) 통과", async () => {
+    it("법인 임대인 + 사업자등록번호·계약일 모두 있어도 국세청 API를 실제로는 호출하지 않는다 (Finding 1)", async () => {
+      // 예전에는 이 조합(사업자등록번호 + 임대인명 + 계약일)이 모두 있으면 그 값들을
+      // verifyBusinessRegistration 에 그대로 흘려 mock 진위확인이 source: "nts", valid: true
+      // 를 반환했다. 하지만 계약일은 개업일자(start_dt)가 아니고 임대인명은 대표자성명(p_nm)이
+      // 아니므로, 이는 실제 API 앞에서는 명백한 오답을 만드는 위험한 호출이었다(Finding 1).
+      // 지금은 사업자등록번호가 있으면 무조건 unavailable 을 반환하고 API를 호출하지 않는다.
       const created = await app.request("/v1/cases", {
         method: "POST",
         headers: AUTH,
         body: JSON.stringify({
-          title: "법인 임대인 (진위확인 가능)",
+          title: "법인 임대인 (진위확인 불가 — 스키마에 대표자성명·개업일자 필드 없음)",
           leaseType: "jeonse",
           amountUnit: "man",
           deposit: 9000,
@@ -833,8 +852,6 @@ describe("계약서 초안", () => {
         }),
       });
       const caseId = (await json<{ case: { id: string } }>(created)).case.id;
-      // "가짜" 가 포함되지 않은 대표자명(=법인명)이어야 mock 진위확인이 valid=true 를 준다
-      // (Task 5 mockBusinessRegistration 의 트리거 규칙).
       await registerCaseWithLessorName(caseId, "(주)가상법인");
 
       const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
@@ -843,13 +860,58 @@ describe("계약서 초안", () => {
         draft: {
           parties: {
             role: string;
+            businessVerification: { source: string; valid: boolean | null; status: string | null } | null;
+          }[];
+        };
+      }>(res);
+      const lessor = body.draft.parties.find((p) => p.role === "임대인");
+      expect(lessor?.businessVerification?.source).toBe("unavailable");
+      expect(lessor?.businessVerification?.valid).toBeNull();
+      expect(lessor?.businessVerification?.status).toBe("대표자성명·개업일자 정보가 없어 확인할 수 없습니다.");
+    });
+
+    it("Finding 4: 법인처럼 보이지 않는 임대인이라도 사업자등록번호가 있으면 unavailable (not null)", async () => {
+      // Finding 4 이전 버그: 바깥 게이트가 looksCorporate(lessorName) 였기 때문에,
+      // 사업자등록번호를 입력해도 임대인 이름이 법인 명칭 패턴이 아니면(개인 이름 · null 등)
+      // 이 분기 자체에 들어가지 못해 businessVerification 이 조용히 null 로 남았다 —
+      // 사용자가 준 실제 정보(사업자등록번호)가 아무 신호도 만들지 못하는 버그였다.
+      // 지금은 사업자등록번호 유무가 그 자체로 충분한 게이트이므로, 법인처럼 보이지
+      // 않는 이름이어도 unavailable 객체를 받아야 한다.
+      //
+      // /contract-draft 는 RATE_LIMITS.analyze(시간당 10회)를 쓰고 이 파일의 다른
+      // 테스트들과 버킷을 공유하므로(같은 "Bearer dev" 사용자), 한도 소진을 피하려고
+      // 이 테스트만 별도 토큰(= 별도 사용자)을 쓴다.
+      const FINDING4_AUTH = { authorization: "Bearer finding4-noncorp-brn", "content-type": "application/json" };
+      const created = await app.request("/v1/cases", {
+        method: "POST",
+        headers: FINDING4_AUTH,
+        body: JSON.stringify({
+          title: "개인처럼 보이는 이름 + 사업자등록번호",
+          leaseType: "jeonse",
+          amountUnit: "man",
+          deposit: 9000,
+          businessRegistrationNumber: "123-45-67890",
+        }),
+      });
+      const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+      // "홍길동"은 CORPORATE_MARKERS 중 어느 것도 포함하지 않으므로 looksCorporate() 는 false.
+      await registerCaseWithLessorName(caseId, "홍길동", FINDING4_AUTH);
+
+      const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: FINDING4_AUTH });
+      expect(res.status).toBe(200);
+      const body = await json<{
+        draft: {
+          parties: {
+            role: string;
+            name: string | null;
             businessVerification: { source: string; valid: boolean | null } | null;
           }[];
         };
       }>(res);
       const lessor = body.draft.parties.find((p) => p.role === "임대인");
-      expect(lessor?.businessVerification?.source).toBe("nts");
-      expect(lessor?.businessVerification?.valid).toBe(true);
+      expect(lessor?.name).toBe("홍길동");
+      expect(lessor?.businessVerification?.source).toBe("unavailable");
+      expect(lessor?.businessVerification?.valid).toBeNull();
     });
   });
 });

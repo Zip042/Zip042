@@ -372,6 +372,19 @@ describe("요청 제한", () => {
     });
     expect(analyzeRes.headers.get("RateLimit-Limit")).toBe("10");
   });
+
+  it("계약서 초안도 분석과 같은 촘촘한 한도를 쓴다", async () => {
+    // ensureExtractions 캐시 미스 시 AI 호출로 이어질 수 있으므로 /analyze 와 같은
+    // RATE_LIMITS.analyze 를 쓴다 (비용 사고 방지).
+    const res = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({ roadAddress: "대전광역시 유성구 대학로 99", leaseType: "jeonse", deposit: 30_000_000 }),
+    });
+    const id = (await json<{ case: { id: string } }>(res)).case.id;
+    const draftRes = await app.request(`/v1/cases/${id}/contract-draft`, { headers: AUTH });
+    expect(draftRes.headers.get("RateLimit-Limit")).toBe("10");
+  });
 });
 
 describe("meta 능력 보고", () => {

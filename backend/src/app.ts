@@ -203,6 +203,8 @@ export function createApp() {
   // 분석은 AI 호출이 발생하므로 가장 촘촘하게 잡는다 (비용 사고 방지).
   app.use("/v1/cases/:caseId/analyze", rateLimit(RATE_LIMITS.analyze));
   app.use("/v1/cases/:caseId/analyze/jobs", rateLimit(RATE_LIMITS.analyze));
+  // 계약서 초안도 캐시 미스 시 ensureExtractions 를 거쳐 AI 호출로 이어질 수 있다.
+  app.use("/v1/cases/:caseId/contract-draft", rateLimit(RATE_LIMITS.analyze));
   app.use("/v1/cases/:caseId/documents/upload-url", rateLimit(RATE_LIMITS.upload));
   app.use("/v1/addresses/*", rateLimit(RATE_LIMITS.address));
   app.use("/v1/cases", rateLimit(RATE_LIMITS.write));
