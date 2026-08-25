@@ -571,6 +571,40 @@ describe("시나리오별 판정 — 프론트엔드가 모든 등급 화면을 
 
 // ---------------------------------------------------------------------------
 
+describe("특약 법조문 인용 (compose)", () => {
+  it("compose 응답에 법조문 원문이 붙는다", async () => {
+    const created = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        title: "법조문 인용 확인",
+        leaseType: "jeonse",
+        amountUnit: "man",
+        deposit: 9000,
+      }),
+    });
+    const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+
+    const res = await app.request(`/v1/cases/${caseId}/special-terms/compose`, {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({ codes: ["TERM_NO_NEW_ENCUMBRANCE"] }),
+    });
+    expect(res.status).toBe(200);
+
+    const body = await json<{
+      legalBasis: {
+        code: string;
+        citations: { law: string; label: string; text: string | null; source: string }[];
+      }[];
+    }>(res);
+    const entry = body.legalBasis.find((b) => b.code === "TERM_NO_NEW_ENCUMBRANCE");
+    expect(entry?.citations[0]?.label).toBe("제3조");
+    expect(entry?.citations[0]?.source).toBe("law_go_kr");
+    expect(entry?.citations[0]?.text).toContain("다음 날");
+  });
+});
+
 interface AnalysisShape {
   verdict: {
     verdict: string;

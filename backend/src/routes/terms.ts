@@ -11,6 +11,7 @@ import {
 } from "../domain/special-terms.js";
 import { getCase } from "../services/case.service.js";
 import { getLatestAnalysis } from "../services/analysis.service.js";
+import { fetchLawArticle } from "../services/lawinfo.service.js";
 import { assertOwnership } from "./cases.js";
 
 const caseParam = z.object({ caseId: z.string().uuid() });
@@ -37,6 +38,7 @@ termsCatalogRoute.get("/special-terms/catalog", (c) => {
       baseline: def.baseline ?? false,
       reason: def.reason,
       clauseTemplate: def.clause(ctx),
+      legalBasis: def.legalBasis ?? [],
     }));
 
   return c.json({
@@ -124,6 +126,26 @@ termsRoute.post(
 
     const unknown = codes.filter((code) => !SPECIAL_TERM_LIBRARY[code]);
 
+    const legalBasis = await Promise.all(
+      selected
+        .filter((def) => (def.legalBasis?.length ?? 0) > 0)
+        .map(async (def) => ({
+          code: def.code,
+          citations: await Promise.all(
+            def.legalBasis!.map(async (ref) => {
+              const article = await fetchLawArticle(ref.law, ref.jo);
+              return {
+                law: ref.law,
+                label: ref.label,
+                text: article.text,
+                source: article.source,
+                url: article.url,
+              };
+            }),
+          ),
+        })),
+    );
+
     const text = selected
       .map((def, i) => `${i + 1}. ${def.clause(ctx)}`)
       .join("\n\n");
@@ -132,6 +154,7 @@ termsRoute.post(
       composed: text,
       includedCodes: selected.map((d) => d.code),
       unknownCodes: unknown,
+      legalBasis,
       disclaimer:
         "계약서 특약사항란에 옮겨 적고 임대인·임차인 양쪽이 서명해야 효력이 있습니다. 법률 자문이 아닙니다.",
     });
