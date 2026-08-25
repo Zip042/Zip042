@@ -153,6 +153,13 @@ const DEFAULTS: Record<string, () => Row> = {
   }),
   public_holidays: () => ({ is_synced: false }),
   small_lessee_thresholds: () => ({ id: randomUUID(), note: null }),
+  // 실제 테이블은 created_at · updated_at 이 `default now()` 다. 목이 이걸 비워 두면
+  // "목에서는 updatedAt 이 null, 운영에서는 값이 있음" 이라는 차이가 생긴다.
+  checklist_progress: () => ({
+    checked_item_ids: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }),
   audit_logs: () => ({ id: randomUUID(), detail: {}, created_at: new Date().toISOString() }),
 };
 

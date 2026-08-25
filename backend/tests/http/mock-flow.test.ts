@@ -365,6 +365,80 @@ describe("대화형 후속 질문", () => {
   });
 });
 
+describe("계약 체크리스트 — 저장과 진행률", () => {
+  it("처음에는 빈 상태이고 404 가 아니다", async () => {
+    const res = await app.request("/v1/checklist/progress", { headers: AUTH });
+    expect(res.status).toBe(200);
+    const body = await json<{ checklist: { checkedItemIds: string[]; updatedAt: string | null } }>(res);
+    expect(body.checklist.checkedItemIds).toEqual([]);
+    expect(body.checklist.updatedAt).toBeNull();
+  });
+
+  it("저장하면 진행률이 함께 갱신된다", async () => {
+    const template = await json<{ stages: { items: { id: string; required: boolean }[] }[] }>(
+      await app.request("/v1/checklist"),
+    );
+    const allItems = template.stages.flatMap((s) => s.items);
+    const firstRequired = allItems.find((i) => i.required)!;
+
+    const saved = await app.request("/v1/checklist/progress", {
+      method: "PUT",
+      headers: AUTH,
+      body: JSON.stringify({ checkedItemIds: [firstRequired.id] }),
+    });
+    expect(saved.status).toBe(200);
+    const body = await json<{
+      checklist: {
+        checkedItemIds: string[];
+        progress: { done: number; requiredDone: number; missingRequired: { id: string }[] };
+      };
+    }>(saved);
+    expect(body.checklist.checkedItemIds).toEqual([firstRequired.id]);
+    expect(body.checklist.progress.done).toBe(1);
+    expect(body.checklist.progress.requiredDone).toBe(1);
+    expect(body.checklist.progress.missingRequired.map((m) => m.id)).not.toContain(firstRequired.id);
+  });
+
+  it("다시 조회하면 저장된 상태가 그대로 나온다", async () => {
+    const body = await json<{ checklist: { checkedItemIds: string[]; updatedAt: string | null } }>(
+      await app.request("/v1/checklist/progress", { headers: AUTH }),
+    );
+    expect(body.checklist.checkedItemIds.length).toBe(1);
+    expect(body.checklist.updatedAt).not.toBeNull();
+  });
+
+  it("알 수 없는 항목 id 는 조용히 걸러진다 (400 이 아니다)", async () => {
+    // 항목이 지워진 뒤 옛 체크가 남아 있어도 화면이 멈추면 안 된다.
+    const res = await app.request("/v1/checklist/progress", {
+      method: "PUT",
+      headers: AUTH,
+      body: JSON.stringify({ checkedItemIds: ["없는항목", "issued_registry"] }),
+    });
+    expect(res.status).toBe(200);
+    const body = await json<{ checklist: { checkedItemIds: string[] } }>(res);
+    expect(body.checklist.checkedItemIds).toEqual(["issued_registry"]);
+  });
+
+  it("사용자마다 체크 상태가 분리된다", async () => {
+    const other = { authorization: "Bearer bob", "content-type": "application/json" };
+    const body = await json<{ checklist: { checkedItemIds: string[] } }>(
+      await app.request("/v1/checklist/progress", { headers: other }),
+    );
+    expect(body.checklist.checkedItemIds).toEqual([]);
+  });
+
+  it("초기화하면 전부 해제된다", async () => {
+    const res = await app.request("/v1/checklist/progress", { method: "DELETE", headers: AUTH });
+    expect(res.status).toBe(200);
+    expect((await json<{ checklist: { checkedItemIds: string[] } }>(res)).checklist.checkedItemIds).toEqual([]);
+
+    const after = await json<{ checklist: { checkedItemIds: string[] } }>(
+      await app.request("/v1/checklist/progress", { headers: AUTH }),
+    );
+    expect(after.checklist.checkedItemIds).toEqual([]);
+  });
+});
+
 describe("지역 위험 레이어", () => {
   it("피해주택 더미가 반경 500m 내에서 집계된다", async () => {
     const res = await app.request("/v1/region/risk?lat=36.3504&lng=127.3845", { headers: AUTH });
