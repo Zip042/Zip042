@@ -16,7 +16,9 @@ import { useAnalysisFlow } from "@/state/AnalysisFlow";
  */
 
 const ACCEPTED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 20 * 1024 * 1024;
+// 서버 한도와 같은 값이어야 한다. 더 크게 두면 화면은 통과시키고 서버가 거절해
+// 사용자는 이유를 알 수 없다. (base64 로 1.33배 부풀기 때문에 10MB 다.)
+const MAX_BYTES = 10 * 1024 * 1024;
 
 interface DocumentRow {
   docType: string;
@@ -67,7 +69,7 @@ export default function AnalyzeDocuments() {
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError("파일이 너무 큽니다. 20MB 이하로 올려주세요.");
+      setError("파일이 너무 큽니다. 10MB 이하로 올려주세요.");
       return;
     }
 

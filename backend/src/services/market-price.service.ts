@@ -19,14 +19,48 @@ import type { BuildingKind } from "../domain/valuation.js";
  *   3) 이 값은 **참고용 추정치**다. UI에 "추정 시세"임을 반드시 표시할 것.
  */
 
+/**
+ * 매매 실거래가 — 시세(집값) 산정용.
+ *
+ * 팀이 확정한 공공데이터포털 신청 목록(집톡 필요 API 요약, 2026-08)과 1:1로 맞춘다.
+ * 괄호 안은 포털 데이터셋 번호이며, 신청 화면에서 이 번호로 찾으면 된다.
+ */
 const ENDPOINTS: Record<string, string> = {
+  // 아파트 매매 (15126469)
   apartment: "/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev",
+  // 오피스텔 매매 (15126475 계열)
   officetel: "/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
+  // 연립·다세대 매매 (15126467) — 빌라 시세의 최핵심
   multi_family: "/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade",
   row_house: "/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade",
   studio: "/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade",
+  // 단독·다가구 매매 (15126472 계열)
   multi_household: "/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade",
   detached: "/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade",
+};
+
+/**
+ * 전월세 실거래가 — **전세가율 비교용**.
+ *
+ * 매매가만으로는 "이 동네 전세가 보통 얼마인지"를 알 수 없다. 주변 전세 실거래를 함께
+ * 보면 내 보증금이 시장에서 튀는 값인지 판단할 수 있다 — 깡통전세는 대개 시세 대비
+ * 전세가가 비정상적으로 높다.
+ *
+ * ⚠️ 아직 조회 함수가 이 표를 쓰지 않는다. 키를 받아 응답 형식을 확인한 뒤 붙인다
+ *    (`npm run preflight -- --only molit`). 지금 붙이면 검증 못 한 경로가 판정에 들어간다.
+ */
+export const RENT_ENDPOINTS: Record<string, string> = {
+  // 아파트 전월세 (15126474)
+  apartment: "/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent",
+  // 오피스텔 전월세 (15126475)
+  officetel: "/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent",
+  // 연립·다세대 전월세 (15126473)
+  multi_family: "/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent",
+  row_house: "/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent",
+  studio: "/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent",
+  // 단독·다가구 전월세 (15126472) — 다가구 선순위보증금 참고
+  multi_household: "/1613000/RTMSDataSvcSHRent/getRTMSDataSvcSHRent",
+  detached: "/1613000/RTMSDataSvcSHRent/getRTMSDataSvcSHRent",
 };
 
 /** 조회할 최근 개월 수. 원룸·빌라는 거래가 드물어 12개월은 확보해야 표본이 모인다. */

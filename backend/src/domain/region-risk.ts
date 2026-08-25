@@ -109,9 +109,20 @@ export function evaluateRegionRisk(summary: RegionRiskSummary): RegionRiskResult
     findings.push({
       code: "REGION_NEARBY_VICTIMS",
       category: "region",
-      severity: densityLevel,
-      weight: hotspot ? 18 : densityLevel === "danger" ? 12 : 6,
-      title: `반경 ${summary.radiusM}m 안에 전세사기 피해가 ${summary.victimCaseCount}건 있어요`,
+      // 팀이 확정한 API 목록(집톡 필요 API 요약, 2026-08)의 결정을 따른다:
+      //   "대전광역시_전세사기 발생건수 및 피해주택소재지 → 자치구 단위 맥락 한 줄로만
+      //    표시 — **위험 점수에 반영하지 말 것**"
+      //
+      // 이유는 데이터 자체에 있다. 보유분이 자치구 단위 집계뿐이고 좌표가 0건이라
+      // 반경 계산이 성립하지 않는다. 성립하지 않는 계산으로 점수를 올리면 그 점수는
+      // 근거를 댈 수 없고, 근거를 못 대는 판정은 사용자가 믿지 않는다.
+      //
+      // 그래서 **맥락으로만** 남긴다. 등급은 caution 을 넘지 않고 점수 기여는 0이다.
+      // (동일 건물 · 동일 소유자 피해는 다르다 — 그건 이 물건·이 임대인에 대한 직접
+      //  증거이므로 위에서 critical 을 유지한다. 설계 원칙 4.)
+      severity: "caution",
+      weight: 0,
+      title: `이 지역에 전세사기 피해 신고가 ${summary.victimCaseCount}건 있어요 (참고)`,
       description:
         `주변 ${summary.radiusM}m 이내에서 신고된 피해가 ${summary.victimCaseCount}건(주택 ` +
         `${summary.victimSiteCount}곳)입니다.` +

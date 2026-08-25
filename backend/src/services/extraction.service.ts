@@ -93,6 +93,14 @@ const DOC_PROMPTS = {
 **말소 판단** — 등기목적에 "말소"가 있거나, 해당 순위번호에 취소선/밑줄이 그어져 있으면 isCancelled=true.
   말소된 권리도 rights 에 포함시키되 isCancelled=true 로 표시하세요. 빼먹지 마세요.
 
+  ⚠️ **말소 등기 자체도 하나의 항목으로 넣으세요.** 예를 들어 "3번근저당권설정등기말소"라는
+  등기가 있으면 그것도 rights 의 한 항목입니다. note 에 **그 문구를 요약하지 말고 원문 그대로**
+  적으세요 — 대상 순위번호("3번")가 그 문구 안에 들어 있고, 서버가 그걸 읽어 이중으로 확인합니다.
+  취소선은 글자가 아니라서 놓칠 수 있는데, 이 문구는 글자로 남아 있습니다.
+
+**원문인용** — 각 권리마다 그 값을 읽어낸 등기부의 문장을 sourceQuote 에 한 줄로 그대로 옮기세요.
+  요약·정리하지 말고 보이는 그대로입니다. 근거를 댈 수 없으면 null 로 두세요.
+
 **발급일** — 문서 하단·상단의 "열람일시" 또는 "발급일"의 날짜를 issuedOn 에.`,
 
   brokerage_statement: `중개대상물 확인·설명서입니다. 다음을 정확히 판독하세요.
@@ -244,6 +252,7 @@ function normalizeRegistry(raw: RegistryExtractionRaw): RegistryExtraction {
     registeredOn: sanitizeDate(r.registeredOn),
     isCancelled: r.isCancelled,
     note: r.note,
+    sourceQuote: r.sourceQuote?.trim() || null,
   }));
 
   return {

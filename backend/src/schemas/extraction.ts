@@ -45,7 +45,21 @@ export const registryRightSchema = z.object({
   maxClaimKrw: nullableAmount.describe("채권최고액 등 금액. 원 단위 정수. 없으면 null"),
   registeredOn: nullableDate,
   isCancelled: z.boolean().describe("말소된 권리인지 (줄이 그어져 있거나 '말소' 표시가 있으면 true)"),
-  note: z.string().nullable().describe("등기목적 원문 요약. 예: '근저당권설정'"),
+  note: z
+    .string()
+    .nullable()
+    .describe(
+      "등기목적을 **원문 그대로**. 예: '근저당권설정', '3번근저당권설정등기말소'. " +
+        "말소 등기는 대상 순위번호가 이 문구에 들어 있으므로 요약하지 말 것",
+    ),
+  sourceQuote: z
+    .string()
+    .nullable()
+    .describe(
+      "이 항목을 읽어낸 등기부의 문장을 원문 그대로 (한 줄). " +
+        "예: '2024년3월15일 제12345호 근저당권설정 채권최고액 금360,000,000원'. " +
+        "근거를 댈 수 없으면 null",
+    ),
 });
 
 export const registryExtractionSchema = z.object({

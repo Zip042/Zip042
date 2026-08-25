@@ -329,17 +329,28 @@ describe("지역 위험", () => {
     expect(r.findings.map((f) => f.code)).toContain("REGION_NO_NEARBY_VICTIMS");
   });
 
-  it("피해 건수에 따라 등급이 올라가되 danger 를 넘지 않는다", () => {
-    expect(evaluateRegionRisk({ ...summary, victimCaseCount: 2 }).level).toBe("caution");
-    expect(evaluateRegionRisk({ ...summary, victimCaseCount: 12 }).level).toBe("danger");
-    // 주변 통계만으로 '계약 불가'를 만들지 않는다 — 이 집 자체의 증거가 아니기 때문.
-    expect(evaluateRegionRisk({ ...summary, victimCaseCount: 40 }).level).toBe("danger");
+  it("지역 통계는 건수와 무관하게 caution 을 넘지 않는다", () => {
+    // 팀이 확정한 API 목록(2026-08)의 결정: 대전 피해주택 데이터는 자치구 단위 집계뿐이고
+    // 좌표가 0건이라 반경 계산이 성립하지 않는다 → 맥락으로만 쓰고 점수에 넣지 않는다.
+    for (const count of [2, 12, 40]) {
+      expect(evaluateRegionRisk({ ...summary, victimCaseCount: count }).level).toBe("caution");
+    }
+  });
+
+  it("지역 통계는 위험 점수에 기여하지 않는다", () => {
+    // weight 가 0 이 아니면 '동네가 나쁘다'는 이유로 이 집의 점수가 올라간다.
+    for (const count of [2, 12, 40]) {
+      const f = evaluateRegionRisk({ ...summary, victimCaseCount: count }).findings.find(
+        (x) => x.code === "REGION_NEARBY_VICTIMS",
+      );
+      expect(f?.weight, `${count}건일 때`).toBe(0);
+    }
   });
 
   it("밀집 지역은 등급은 그대로 두고 문구만 강해진다", () => {
     const hotspot = evaluateRegionRisk({ ...summary, victimCaseCount: 40 });
     const f = hotspot.findings.find((x) => x.code === "REGION_NEARBY_VICTIMS");
-    expect(f?.severity).toBe("danger");
+    expect(f?.severity).toBe("caution");
     expect(f?.description).toContain("피해가 특히 몰려 있는");
     expect(f?.description).toContain("참고 정보");
   });

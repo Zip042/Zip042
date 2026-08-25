@@ -8,6 +8,8 @@ import {
   type RegistryRight,
   type RiskLevel,
 } from "./types.js";
+import { separateCancelledRights } from "./registry-cancellation.js";
+import { cancelledEntriesNotice, validateRegistryExtraction } from "./registry-validation.js";
 
 /**
  * 등기부등본 위험 규칙 엔진.
@@ -67,8 +69,19 @@ export function evaluateRegistry(input: RegistryRiskInput): RegistryRiskResult {
   const { registry, myDepositKrw, today } = input;
   const findings: Finding[] = [];
 
-  const activeRights = registry.rights.filter((r) => !r.isCancelled);
-  const cancelledCount = registry.rights.length - activeRights.length;
+  // 말소 걸러내기는 **코드가 이중으로** 한다. AI 의 isCancelled 만 믿으면 취소선을
+  // 놓쳤을 때 이미 갚은 빚을 살아 있는 것으로 계산한다 (registry-cancellation.ts 참고).
+  const cancellation = separateCancelledRights(registry.rights);
+  const activeRights = cancellation.active;
+  const cancelledCount = cancellation.cancelled.length;
+
+  // 말소사항이 섞인 등기부였다면 조용히 넘기지 않고 사용자에게 알린다.
+  if (cancellation.includesCancelledEntries) {
+    findings.push(cancelledEntriesNotice(cancellation.rescuedByCode));
+  }
+
+  // 값이 말이 되는지 검산한다. 스키마는 형식만 보장하지 값의 타당성은 보장하지 않는다.
+  findings.push(...validateRegistryExtraction({ registry, today }));
 
   const mortgages = activeRights.filter((r) => r.type === "mortgage");
   const seniorMortgageKrw = mortgages.reduce((sum, r) => sum + (r.maxClaimKrw ?? 0), 0);
@@ -260,6 +273,8 @@ export function evaluateRegistry(input: RegistryRiskInput): RegistryRiskResult {
           holder: m.holder,
           maxClaimKrw: m.maxClaimKrw,
           registeredOn: m.registeredOn,
+          // 이 값을 등기부 어디에서 읽었는지. 사용자에게 근거를 보여줄 때 쓴다.
+          sourceQuote: m.sourceQuote ?? null,
         })),
       },
       suggestTerms: ["TERM_DEBT_CERTIFICATE", "TERM_NO_NEW_ENCUMBRANCE"],
@@ -477,7 +492,10 @@ export function evaluateRegistry(input: RegistryRiskInput): RegistryRiskResult {
   }
 
   return {
-    level: maxRisk(...findings.map((f) => f.severity)),
+    // 카테고리 등급은 **실제 위험만으로** 낸다.
+    // info_gap 을 섞으면 "사진이 흐림"만으로 이 항목이 danger 로 보인다 (설계 원칙 3).
+    // 확인 못 한 항목은 verdict 의 informationGaps 로 따로 나간다.
+    level: maxRisk(...findings.filter((f) => f.kind !== "info_gap").map((f) => f.severity)),
     seniorMortgageKrw,
     otherSeniorClaimsKrw,
     activeRights,

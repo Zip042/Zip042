@@ -62,8 +62,24 @@ function right(overrides: Partial<RegistryRight> = {}): RegistryRight {
     registeredOn: null,
     isCancelled: false,
     note: "근저당권설정",
+    // 실제 판독은 원문 한 줄을 함께 돌려준다. 목도 같은 모양이어야 화면이 두 모드에서 같다.
+    sourceQuote: "근저당권설정 채권최고액 금60,000,000원 근저당권자 가상은행 대전지점",
     ...overrides,
   };
+}
+
+/** 갑구의 현재 소유자 등기. 모든 등기부에 존재하므로 목에도 항상 넣는다. */
+function ownershipEntry(acquiredOn: DateOnly | null): RegistryRight {
+  return right({
+    section: "gap",
+    rankNo: "2",
+    type: "ownership_transfer",
+    holder: OWNER,
+    maxClaimKrw: null,
+    registeredOn: acquiredOn,
+    note: "소유권이전",
+    sourceQuote: `소유권이전 소유자 ${OWNER}`,
+  });
 }
 
 function baseRegistry(today: DateOnly, overrides: Partial<RegistryExtraction> = {}): RegistryExtraction {
@@ -78,10 +94,29 @@ function baseRegistry(today: DateOnly, overrides: Partial<RegistryExtraction> = 
     issuedOn: today,
     isTrustProperty: false,
     isSectionedBuilding: true,
-    rights: [],
     unreadableSections: [],
     ...overrides,
+    /**
+     * 갑구(소유권) 기재는 **덮어쓰기 뒤에 보강한다.**
+     *
+     * 실제 등기부에는 반드시 소유권 기재가 있다. 그런데 시나리오들은 `rights` 를 통째로
+     * 덮어쓰므로, 기본값에만 넣어 두면 사라진다. 그러면 "갑구를 읽지 못했어요" 검산
+     * 경고가 모든 목 응답에 따라붙는다 — 규칙이 틀린 게 아니라 목이 비현실적인 것이다.
+     *
+     * 시나리오가 일부러 갑구를 넣었으면(소유자 불일치·신탁 등) 그대로 두고,
+     * 없을 때만 채운다.
+     */
+    rights: withOwnershipEntry(
+      overrides.rights ?? [],
+      overrides.ownershipAcquiredOn ?? addMonths(today, -36),
+    ),
   };
+}
+
+/** 갑구 기재가 없으면 소유권이전 등기를 앞에 붙인다. */
+function withOwnershipEntry(rights: RegistryRight[], acquiredOn: DateOnly | null): RegistryRight[] {
+  if (rights.some((r) => r.section === "gap")) return rights;
+  return [ownershipEntry(acquiredOn), ...rights];
 }
 
 function baseBrokerage(
