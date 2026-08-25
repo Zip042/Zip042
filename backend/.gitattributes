@@ -1,0 +1,15 @@
+# 줄바꿈 정규화.
+#
+# 팀원의 OS 가 섞여 있으면(Windows CRLF / mac·Linux LF) 내용은 그대로인데
+# 파일 전체가 변경된 것으로 보이는 diff 가 생겨 리뷰가 불가능해진다.
+# 저장소에는 항상 LF 로 저장하고, 체크아웃 시 OS 기본을 따르게 한다.
+* text=auto
+
+# SQL 마이그레이션은 psql 로 직접 돌리는 경우가 있어 LF 로 고정한다.
+*.sql text eol=lf
+
+# 바이너리 — diff 를 시도하지 않는다.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.webp binary
