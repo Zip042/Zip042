@@ -94,13 +94,29 @@ function baseRegistry(today: DateOnly, overrides: Partial<RegistryExtraction> = 
     issuedOn: today,
     isTrustProperty: false,
     isSectionedBuilding: true,
-    // 실제 등기부에는 **반드시 갑구(소유권) 기재가 있다.** 목이 이걸 비워 두면
-    // "갑구를 읽지 못했어요" 검산 경고가 모든 목 응답에 따라붙는다 —
-    // 목이 운영과 달라지는 전형적인 경우다.
-    rights: [ownershipEntry(overrides.ownershipAcquiredOn ?? null)],
     unreadableSections: [],
     ...overrides,
+    /**
+     * 갑구(소유권) 기재는 **덮어쓰기 뒤에 보강한다.**
+     *
+     * 실제 등기부에는 반드시 소유권 기재가 있다. 그런데 시나리오들은 `rights` 를 통째로
+     * 덮어쓰므로, 기본값에만 넣어 두면 사라진다. 그러면 "갑구를 읽지 못했어요" 검산
+     * 경고가 모든 목 응답에 따라붙는다 — 규칙이 틀린 게 아니라 목이 비현실적인 것이다.
+     *
+     * 시나리오가 일부러 갑구를 넣었으면(소유자 불일치·신탁 등) 그대로 두고,
+     * 없을 때만 채운다.
+     */
+    rights: withOwnershipEntry(
+      overrides.rights ?? [],
+      overrides.ownershipAcquiredOn ?? addMonths(today, -36),
+    ),
   };
+}
+
+/** 갑구 기재가 없으면 소유권이전 등기를 앞에 붙인다. */
+function withOwnershipEntry(rights: RegistryRight[], acquiredOn: DateOnly | null): RegistryRight[] {
+  if (rights.some((r) => r.section === "gap")) return rights;
+  return [ownershipEntry(acquiredOn), ...rights];
 }
 
 function baseBrokerage(
