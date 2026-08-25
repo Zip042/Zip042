@@ -11,7 +11,7 @@ import type { BusinessRegistrationResult } from "../domain/types.js";
 
 const CORPORATE_MARKERS = ["주식회사", "(주)", "유한회사", "재단법인", "사단법인"];
 
-function looksCorporate(name: string | null): boolean {
+export function looksCorporate(name: string | null): boolean {
   if (!name) return false;
   return CORPORATE_MARKERS.some((marker) => name.includes(marker));
 }

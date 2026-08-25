@@ -14,6 +14,8 @@ let app: Hono;
 let today: string;
 let buildScenario: typeof import("../../src/mock/fixtures.js").buildScenario;
 let SCENARIO_KEYS: typeof import("../../src/mock/fixtures.js").SCENARIO_KEYS;
+let mockStore: typeof import("../../src/mock/store.js").store;
+let EXTRACTION_SCHEMA_VERSION: typeof import("../../src/services/extraction.service.js").EXTRACTION_SCHEMA_VERSION;
 
 const AUTH = { authorization: "Bearer dev", "content-type": "application/json" };
 
@@ -29,16 +31,74 @@ beforeAll(async () => {
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.DATA_GO_KR_SERVICE_KEY;
 
-  const [{ createApp }, fixtures, dateLib] = await Promise.all([
+  const [{ createApp }, fixtures, dateLib, storeModule, extractionService] = await Promise.all([
     import("../../src/app.js"),
     import("../../src/mock/fixtures.js"),
     import("../../src/lib/date.js"),
+    import("../../src/mock/store.js"),
+    import("../../src/services/extraction.service.js"),
   ]);
   app = createApp() as unknown as Hono;
   buildScenario = fixtures.buildScenario;
   SCENARIO_KEYS = fixtures.SCENARIO_KEYS;
   today = dateLib.todayKst();
+  mockStore = storeModule.store;
+  EXTRACTION_SCHEMA_VERSION = extractionService.EXTRACTION_SCHEMA_VERSION;
 });
+
+/**
+ * 목 모드의 문서 판독은 항상 시나리오 픽스처(`mock/fixtures.ts`)에서 나오고, 그 어떤
+ * 시나리오도 법인 임대인 이름을 갖고 있지 않다 — `looksCorporate()` 분기 전체
+ * (not_applicable/unavailable/nts)를 e2e 로 확인하려면 판독 결과에 법인명이 있어야 한다.
+ *
+ * 공유 시나리오 픽스처를 건드리는 대신(다른 시나리오·`/v1/dev/seed` 기본 동작에 영향을 줄
+ * 위험이 있다), `ensureExtractions` 가 재판독 없이 그대로 쓰는 `document_extractions`
+ * 캐시 행을 이 테스트 전용으로 직접 심는다. 이 캐시-우선 경로는 실제 서비스 코드
+ * (`document.service.ts`)가 이미 쓰는 정상 동작이므로, 이 방식은 내부 구현을
+ * 우회하는 게 아니라 그 경로를 통해 법인명을 주입하는 것이다.
+ */
+async function registerCaseWithLessorName(caseId: string, lessorName: string): Promise<void> {
+  const upRes = await app.request(`/v1/cases/${caseId}/documents/upload-url`, {
+    method: "POST",
+    headers: AUTH,
+    body: JSON.stringify({
+      docType: "lease_draft",
+      fileName: "임대차계약서.pdf",
+      mimeType: "application/pdf",
+    }),
+  });
+  const { upload } = await json<{ upload: { url: string; storagePath: string } }>(upRes);
+
+  await app.request(new URL(upload.url).pathname, {
+    method: "PUT",
+    headers: { "content-type": "application/pdf" },
+    body: Buffer.from("%PDF-1.4 테스트 파일"),
+  });
+
+  const regRes = await app.request(`/v1/cases/${caseId}/documents`, {
+    method: "POST",
+    headers: AUTH,
+    body: JSON.stringify({
+      docType: "lease_draft",
+      storagePath: upload.storagePath,
+      originalName: "임대차계약서.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 21,
+    }),
+  });
+  const { document } = await json<{ document: { id: string } }>(regRes);
+
+  mockStore.table("document_extractions").push({
+    ...mockStore.defaultsFor("document_extractions"),
+    document_id: document.id,
+    case_id: caseId,
+    doc_type: "lease_draft",
+    model: "test-fixture:corporate-lessor",
+    schema_version: EXTRACTION_SCHEMA_VERSION,
+    payload: { lessorName },
+    confidence: 0.9,
+  });
+}
 
 describe("목 모드 기본", () => {
   it("meta 가 목 모드임을 알려준다", async () => {
@@ -700,6 +760,97 @@ describe("계약서 초안", () => {
     }>(res);
     const lessor = body.draft.parties.find((p) => p.role === "임대인");
     expect(lessor?.businessVerification).toBeNull();
+  });
+
+  describe("법인 임대인 — 사업자등록 진위확인 3분기", () => {
+    it("법인 임대인 + 사업자등록번호 미입력 → not_applicable", async () => {
+      const created = await app.request("/v1/cases", {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          title: "법인 임대인 (등록번호 없음)",
+          leaseType: "jeonse",
+          amountUnit: "man",
+          deposit: 9000,
+          contractDate: "2026-09-10",
+          balanceDate: "2026-10-08",
+        }),
+      });
+      const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+      await registerCaseWithLessorName(caseId, "(주)가상법인");
+
+      const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
+      expect(res.status).toBe(200);
+      const body = await json<{
+        draft: {
+          parties: {
+            role: string;
+            businessVerification: { source: string; valid: boolean | null } | null;
+          }[];
+        };
+      }>(res);
+      const lessor = body.draft.parties.find((p) => p.role === "임대인");
+      expect(lessor?.businessVerification?.source).toBe("not_applicable");
+      expect(lessor?.businessVerification?.valid).toBeNull();
+    });
+
+    it("법인 임대인 + 사업자등록번호는 있으나 계약일이 없음 → unavailable", async () => {
+      const created = await app.request("/v1/cases", {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          title: "법인 임대인 (계약일 없음)",
+          leaseType: "jeonse",
+          amountUnit: "man",
+          deposit: 9000,
+          businessRegistrationNumber: "123-45-67890",
+        }),
+      });
+      const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+      await registerCaseWithLessorName(caseId, "(주)가상법인");
+
+      const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
+      expect(res.status).toBe(200);
+      const body = await json<{
+        draft: { parties: { role: string; businessVerification: { source: string } | null }[] };
+      }>(res);
+      const lessor = body.draft.parties.find((p) => p.role === "임대인");
+      expect(lessor?.businessVerification?.source).toBe("unavailable");
+    });
+
+    it("법인 임대인 + 사업자등록번호 · 계약일 모두 있음 → 국세청 진위확인(mock) 통과", async () => {
+      const created = await app.request("/v1/cases", {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          title: "법인 임대인 (진위확인 가능)",
+          leaseType: "jeonse",
+          amountUnit: "man",
+          deposit: 9000,
+          businessRegistrationNumber: "123-45-67890",
+          contractDate: "2026-09-10",
+          balanceDate: "2026-10-08",
+        }),
+      });
+      const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+      // "가짜" 가 포함되지 않은 대표자명(=법인명)이어야 mock 진위확인이 valid=true 를 준다
+      // (Task 5 mockBusinessRegistration 의 트리거 규칙).
+      await registerCaseWithLessorName(caseId, "(주)가상법인");
+
+      const res = await app.request(`/v1/cases/${caseId}/contract-draft`, { headers: AUTH });
+      expect(res.status).toBe(200);
+      const body = await json<{
+        draft: {
+          parties: {
+            role: string;
+            businessVerification: { source: string; valid: boolean | null } | null;
+          }[];
+        };
+      }>(res);
+      const lessor = body.draft.parties.find((p) => p.role === "임대인");
+      expect(lessor?.businessVerification?.source).toBe("nts");
+      expect(lessor?.businessVerification?.valid).toBe(true);
+    });
   });
 });
 
