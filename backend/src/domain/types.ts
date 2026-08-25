@@ -196,3 +196,15 @@ export interface StandardLeaseFormResult {
   pdfUrl: string | null;
   fallbackUrl: string;
 }
+
+export interface BusinessRegistrationInput {
+  businessNumber: string;
+  representativeName: string;
+  openingDate: DateOnly;
+}
+
+export interface BusinessRegistrationResult {
+  source: "nts" | "unavailable" | "not_applicable";
+  valid: boolean | null;
+  status: string | null;
+}
