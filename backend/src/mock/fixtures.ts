@@ -68,6 +68,20 @@ function right(overrides: Partial<RegistryRight> = {}): RegistryRight {
   };
 }
 
+/** 갑구의 현재 소유자 등기. 모든 등기부에 존재하므로 목에도 항상 넣는다. */
+function ownershipEntry(acquiredOn: DateOnly | null): RegistryRight {
+  return right({
+    section: "gap",
+    rankNo: "2",
+    type: "ownership_transfer",
+    holder: OWNER,
+    maxClaimKrw: null,
+    registeredOn: acquiredOn,
+    note: "소유권이전",
+    sourceQuote: `소유권이전 소유자 ${OWNER}`,
+  });
+}
+
 function baseRegistry(today: DateOnly, overrides: Partial<RegistryExtraction> = {}): RegistryExtraction {
   return {
     address: `${ADDRESS} ${DETAIL}`,
@@ -80,7 +94,10 @@ function baseRegistry(today: DateOnly, overrides: Partial<RegistryExtraction> = 
     issuedOn: today,
     isTrustProperty: false,
     isSectionedBuilding: true,
-    rights: [],
+    // 실제 등기부에는 **반드시 갑구(소유권) 기재가 있다.** 목이 이걸 비워 두면
+    // "갑구를 읽지 못했어요" 검산 경고가 모든 목 응답에 따라붙는다 —
+    // 목이 운영과 달라지는 전형적인 경우다.
+    rights: [ownershipEntry(overrides.ownershipAcquiredOn ?? null)],
     unreadableSections: [],
     ...overrides,
   };
