@@ -408,6 +408,15 @@
               }
             }
           },
+          "lessor": {
+            "type": "object",
+            "properties": {
+              "businessRegistrationNumber": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
           "terms": {
             "type": "object",
             "properties": {

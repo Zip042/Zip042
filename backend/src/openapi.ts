@@ -316,6 +316,12 @@ const CASE = {
         householdCount: { type: "integer", nullable: true },
       },
     },
+    lessor: {
+      type: "object",
+      properties: {
+        businessRegistrationNumber: { type: "string", nullable: true },
+      },
+    },
     terms: {
       type: "object",
       properties: {
