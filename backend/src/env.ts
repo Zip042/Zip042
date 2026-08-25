@@ -65,6 +65,9 @@ const EnvSchema = z
     DATA_GO_KR_SERVICE_KEY: z.string().optional(),
     DATA_GO_KR_BASE_URL: z.string().url().default("https://apis.data.go.kr"),
 
+    // 법제처 국가법령정보 공동활용 (계약서 초안 · 특약 법조문 인용)
+    LAW_GO_KR_OC: z.string().optional(),
+
     // 한국천문연구원 특일 정보 (공휴일 동기화). 미설정 시 양력 고정 공휴일만 사용.
     KASI_SERVICE_KEY: z.string().optional(),
 

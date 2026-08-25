@@ -184,3 +184,15 @@ export interface MarketPriceEstimate {
   sampleSize?: number | null;
   confidence: number;
 }
+
+export interface LawArticleResult {
+  source: "law_go_kr" | "unavailable";
+  text: string | null;
+  url: string;
+}
+
+export interface StandardLeaseFormResult {
+  source: "law_go_kr" | "unavailable";
+  pdfUrl: string | null;
+  fallbackUrl: string;
+}
