@@ -763,7 +763,7 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
           tags: ["documents"],
           summary: "서명 업로드 URL 발급 (1/3단계)",
           description:
-            "20MB 파일을 API 서버로 통과시키지 않기 위해 클라이언트가 Storage 로 직접 PUT 합니다. " +
+            "파일을 API 서버로 통과시키지 않기 위해 클라이언트가 Storage 로 직접 PUT 합니다(10MB 한도). " +
             `한도: ${RATE_LIMITS.upload.limit}회/시간.`,
           parameters: [caseIdParam],
           requestBody: jsonBody({ $ref: "#/components/schemas/UploadUrlRequest" }),

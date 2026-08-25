@@ -191,7 +191,19 @@ export const registerDocumentSchema = z.object({
   storagePath: z.string().trim().min(1).max(500),
   originalName: z.string().trim().max(255).nullish(),
   mimeType: z.enum(["application/pdf", "image/jpeg", "image/png", "image/webp"]),
-  sizeBytes: z.number().int().positive().max(20 * 1024 * 1024),
+  /**
+   * 10MB 한도.
+   *
+   * 20MB 가 아닌 이유: 판독은 파일을 base64 로 바꿔 모델에 넣는데 그 과정에서 용량이
+   * **약 1.33배**로 붑니다. 20MB 파일은 27MB 가 되고 여기에 JSON 껍데기까지 붙어
+   * 서버리스 함수의 본문 한도(플랜에 따라 4~5MB)와 모델 요청 한도(32MB)에 걸립니다.
+   * 등기부 PDF 는 보통 1MB 미만이라 10MB 면 충분합니다.
+   */
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024, "파일이 너무 큽니다. 10MB 이하로 올려주세요."),
   /**
    * 목 모드에서 어떤 판독 시나리오를 적용할지 (`GET /v1/dev/scenarios` 참고).
    * live 모드에서는 무시된다 — 실제 문서를 판독하기 때문이다.

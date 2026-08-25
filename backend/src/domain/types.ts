@@ -100,6 +100,13 @@ export interface RegistryRight {
   registeredOn?: DateOnly | null;
   isCancelled: boolean;
   note?: string | null;
+  /**
+   * 이 항목을 읽어낸 등기부 원문 한 줄.
+   *
+   * 값이 이상할 때 원인을 찾고, 사용자에게 근거를 보여줄 때 쓴다.
+   * **근거를 못 대는 값은 못 믿는 값이다.**
+   */
+  sourceQuote?: string | null;
 }
 
 /** 등기부등본 AI 추출 결과 */

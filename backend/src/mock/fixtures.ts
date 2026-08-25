@@ -62,6 +62,8 @@ function right(overrides: Partial<RegistryRight> = {}): RegistryRight {
     registeredOn: null,
     isCancelled: false,
     note: "근저당권설정",
+    // 실제 판독은 원문 한 줄을 함께 돌려준다. 목도 같은 모양이어야 화면이 두 모드에서 같다.
+    sourceQuote: "근저당권설정 채권최고액 금60,000,000원 근저당권자 가상은행 대전지점",
     ...overrides,
   };
 }
