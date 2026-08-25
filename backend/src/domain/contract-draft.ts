@@ -73,6 +73,8 @@ export interface ContractDraft {
     monthlyRentKrw: number;
     maintenanceFeeKrw: number;
     contractTermMonths: number;
+    contractDate: DateOnly | null;
+    balanceDate: DateOnly | null;
   };
   specialTerms: ContractDraftSpecialTermLine[];
   standardFormUrl: string;
@@ -121,6 +123,8 @@ export function assembleContractDraft(input: ContractDraftInput): ContractDraft 
       monthlyRentKrw: terms.monthlyRentKrw,
       maintenanceFeeKrw: terms.maintenanceFeeKrw,
       contractTermMonths: terms.contractTermMonths,
+      contractDate: terms.contractDate,
+      balanceDate: terms.balanceDate,
     },
     specialTerms,
     standardFormUrl: input.standardForm.pdfUrl ?? input.standardForm.fallbackUrl,

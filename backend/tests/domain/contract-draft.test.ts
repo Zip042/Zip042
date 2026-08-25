@@ -103,4 +103,10 @@ describe("assembleContractDraft", () => {
     const draft = assembleContractDraft(baseInput());
     expect(draft.rentHomeNotice.linkUrl).toBe("https://www.renthome.go.kr");
   });
+
+  it("계약일과 잔금일을 출력에 포함한다", () => {
+    const draft = assembleContractDraft(baseInput());
+    expect(draft.terms.contractDate).toBe("2026-09-10");
+    expect(draft.terms.balanceDate).toBe("2026-10-08");
+  });
 });
