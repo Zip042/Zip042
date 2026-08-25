@@ -1,4 +1,4 @@
-import { loadEnv } from "../env.js";
+import { isDemoDeployment, loadEnv } from "../env.js";
 import { todayKst, type DateOnly } from "../lib/date.js";
 import { log } from "../lib/logger.js";
 import { adminClient, type Db } from "../lib/supabase.js";
@@ -418,6 +418,12 @@ function buildCaveats(args: {
   const caveats: string[] = [
     "이 결과는 참고용 점검이며 법률 자문이 아닙니다. 최종 판단 전 공인중개사·법률 전문가와 상담하세요.",
   ];
+  // 데모 배포에서는 이 고지가 **맨 앞**에 와야 한다. 화면이 caveats 를 잘라 보여줘도 살아남는다.
+  if (isDemoDeployment()) {
+    caveats.unshift(
+      "⚠️ 데모 데이터입니다. 올린 서류를 실제로 판독하지 않고 미리 만들어 둔 예시로 응답했습니다. 실제 계약 판단에 사용하지 마세요.",
+    );
+  }
   if (args.marketPrice.source === "unavailable") {
     caveats.push("시세를 확인하지 못해 보증금 회수 가능성은 계산하지 못했습니다.");
   } else if (args.marketPrice.source === "molit_rtms" && (args.marketPrice.sampleSize ?? 0) < 5) {
@@ -484,6 +490,8 @@ async function persistAnalysis(caseId: string, payload: AnalysisResultPayload): 
         analysis_id: analysisId,
         code: f.code,
         category: f.category,
+        // kind 를 빼먹으면 "확인하지 못한 항목"이 "실제 위험"으로 저장된다 (설계 원칙 3).
+        kind: f.kind ?? "risk",
         severity: f.severity,
         weight: f.weight,
         title: f.title,
@@ -552,7 +560,7 @@ export async function getLatestAnalysis(db: Db, caseId: string) {
   const [findings, terms] = await Promise.all([
     db
       .from("analysis_findings")
-      .select("code,category,severity,weight,title,description,action,evidence")
+      .select("code,category,kind,severity,weight,title,description,action,evidence")
       .eq("analysis_id", analysisId)
       .order("sort_order", { ascending: true }),
     db

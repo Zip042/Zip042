@@ -230,3 +230,67 @@ describe("CORS", () => {
     expect(res.headers.get("access-control-allow-headers")).toContain("Authorization");
   });
 });
+
+describe("데모 배포 플래그", () => {
+  /**
+   * `NODE_ENV=production` + 목 모드는 기본적으로 부팅이 차단된다.
+   * ZIP042_DEMO=true 로 **의도를 명시**했을 때만 통과하고, 그때는 서버가 스스로 데모임을 밝힌다.
+   *
+   * env 는 첫 호출 결과를 캐시하고 요청 처리 중에도 다시 읽는다. 그래서 환경변수를
+   * 되돌리는 시점이 중요하다 — 앱을 만든 직후 되돌리면 정작 요청할 때 값이 사라진다.
+   * 오버라이드를 건 채로 검증까지 끝내고 나서 되돌린다.
+   */
+  async function withEnv<T>(
+    overrides: Record<string, string | undefined>,
+    body: (make: () => Promise<Hono>) => Promise<T>,
+  ): Promise<T> {
+    const { resetEnvCache } = await import("../../src/env.js");
+    const saved = { ...process.env };
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    resetEnvCache();
+    try {
+      return await body(async () => {
+        const { createApp } = await import("../../src/app.js");
+        return createApp() as unknown as Hono;
+      });
+    } finally {
+      process.env = saved;
+      resetEnvCache();
+    }
+  }
+
+  const PROD_MOCK = {
+    NODE_ENV: "production",
+    ZIP042_MODE: "mock",
+    SUPABASE_URL: undefined,
+  } as const;
+
+  it("운영 환경 + 목 모드는 플래그 없이 부팅이 차단된다", async () => {
+    await withEnv({ ...PROD_MOCK, ZIP042_DEMO: undefined }, async (make) => {
+      await expect(make()).rejects.toThrow(/목 모드로 실행할 수 없습니다/);
+    });
+  });
+
+  it("ZIP042_DEMO=true 면 부팅하고, 스스로 데모임을 밝힌다", async () => {
+    await withEnv({ ...PROD_MOCK, ZIP042_DEMO: "true" }, async (make) => {
+      const demoApp = await make();
+      const res = await demoApp.request("/v1/meta");
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { demo: boolean; mode: string; disclaimer: string };
+      expect(body.demo).toBe(true);
+      expect(body.mode).toBe("mock");
+      // 실제 판단에 쓰지 말라는 경고가 반드시 있어야 한다.
+      expect(body.disclaimer).toContain("데모");
+      expect(body.disclaimer).toContain("사용하지 마세요");
+    });
+  });
+
+  it("플래그를 켜지 않으면 demo 는 false 다", async () => {
+    const res = await app.request("/v1/meta");
+    const body = (await res.json()) as { demo: boolean };
+    expect(body.demo).toBe(false);
+  });
+});

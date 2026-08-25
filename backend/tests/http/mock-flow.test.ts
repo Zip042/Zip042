@@ -365,6 +365,55 @@ describe("대화형 후속 질문", () => {
   });
 });
 
+describe("판정 저장 — 위험과 '확인 못 함'이 섞이지 않는다", () => {
+  it("저장된 findings 가 kind 를 그대로 들고 온다", async () => {
+    // 이 테스트가 없어서 실제로 kind 가 통째로 버려지고 있었다(컬럼이 없었다).
+    // 그 결과 프론트엔드가 두 축을 나눌 수 없어 "사진이 흐림"이 위험으로 보였다 (설계 원칙 3).
+    const created = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({ title: "kind 보존 확인", leaseType: "jeonse", amountUnit: "man", deposit: 9000 }),
+    });
+    const caseId = (await json<{ case: { id: string } }>(created)).case.id;
+
+    // 서류를 하나도 올리지 않으면 info_gap 이 반드시 생긴다(등기부 미제출 · 시세 미확인 등).
+    const analyzed = await app.request(`/v1/cases/${caseId}/analyze`, {
+      method: "POST",
+      headers: AUTH,
+      body: "{}",
+    });
+    expect(analyzed.status).toBe(200);
+
+    const stored = await json<{
+      analysis: {
+        findings: { code: string; kind?: string }[];
+        verdict: { informationGaps: { code: string }[] };
+      };
+    }>(await app.request(`/v1/cases/${caseId}/analysis`, { headers: AUTH }));
+
+    const gapCodes = new Set(stored.analysis.verdict.informationGaps.map((g) => g.code));
+    expect(gapCodes.size).toBeGreaterThan(0);
+
+    // 모든 finding 에 kind 가 있어야 한다.
+    for (const f of stored.analysis.findings) {
+      expect(f.kind, `${f.code} 에 kind 가 없습니다`).toBeDefined();
+    }
+
+    // informationGaps 에 있는 항목은 findings 에서도 info_gap 이어야 한다.
+    for (const f of stored.analysis.findings) {
+      if (gapCodes.has(f.code)) {
+        expect(f.kind, `${f.code} 는 info_gap 이어야 합니다`).toBe("info_gap");
+      }
+    }
+
+    // 반대로 info_gap 이 아닌 것이 informationGaps 에 들어 있으면 안 된다.
+    const riskCodes = stored.analysis.findings.filter((f) => f.kind === "risk").map((f) => f.code);
+    for (const code of riskCodes) {
+      expect(gapCodes.has(code), `${code} 가 위험이면서 동시에 확인 못 함으로 잡혔습니다`).toBe(false);
+    }
+  });
+});
+
 describe("계약 체크리스트 — 저장과 진행률", () => {
   it("처음에는 빈 상태이고 404 가 아니다", async () => {
     const res = await app.request("/v1/checklist/progress", { headers: AUTH });

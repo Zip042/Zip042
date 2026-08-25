@@ -84,6 +84,8 @@ const DEFAULTS: Record<string, () => Row> = {
   analyses: () => ({ id: randomUUID(), created_at: new Date().toISOString() }),
   analysis_findings: () => ({
     id: randomUUID(),
+    // 실제 테이블의 kind 기본값이 'risk' 다. 목이 비워 두면 두 모드의 응답이 달라진다.
+    kind: "risk",
     weight: 0,
     action: null,
     evidence: {},

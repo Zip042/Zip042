@@ -380,6 +380,77 @@ const VERDICT = {
   },
 } as const;
 
+const ANALYSIS = {
+  type: "object",
+  required: ["verdict", "findings", "specialTerms", "valuation", "schedule", "caveats"],
+  properties: {
+    verdict: { $ref: "#/components/schemas/Verdict" },
+    score: { type: "integer" },
+    contractable: { type: "boolean" },
+    headline: { type: "string" },
+    summary: { type: "string" },
+    findings: { type: "array", items: { $ref: "#/components/schemas/Finding" } },
+    specialTerms: { type: "array", items: { $ref: "#/components/schemas/SpecialTerm" } },
+    valuation: {
+      type: "object",
+      properties: {
+        evaluable: { type: "boolean" },
+        level: RISK_LEVEL,
+        burdenRatio: { type: "number", nullable: true, description: "(선순위 채권 + 내 보증금) / 시세" },
+        burdenRatioPercent: { type: "number", nullable: true },
+        seniorClaimsKrw: { type: "integer", nullable: true },
+        seniorDepositUnknown: {
+          type: "boolean",
+          description: "다가구 선순위 보증금을 모르는 상태. true 면 실제 위험이 더 클 수 있다.",
+        },
+        marketPriceKrw: { type: "integer", nullable: true },
+        marketPrice: {
+          type: "object",
+          properties: {
+            estimatedKrw: { type: "integer" },
+            source: {
+              type: "string",
+              enum: ["molit_rtms", "user_input", "unavailable"],
+              description: "unavailable 이면 시세를 못 구한 것이다. estimatedKrw 를 믿지 말 것.",
+            },
+            method: { type: "string" },
+            confidence: { type: "number" },
+          },
+        },
+        simulation: { type: "object", additionalProperties: true },
+        guarantee: { type: "object", additionalProperties: true },
+      },
+    },
+    schedule: {
+      type: "object",
+      properties: {
+        evaluable: { type: "boolean" },
+        level: RISK_LEVEL,
+        opposingPowerEffectiveAt: { type: "string", nullable: true, format: "date-time" },
+        priorityRightEffectiveAt: { type: "string", nullable: true, format: "date-time" },
+        unprotectedWindow: {
+          type: "object",
+          nullable: true,
+          properties: { days: { type: "integer" }, from: { type: "string" }, to: { type: "string" } },
+          description: "잔금일과 대항력 발생일 사이의 무방비 구간.",
+        },
+        events: { type: "array", items: { $ref: "#/components/schemas/ScheduleEvent" } },
+      },
+    },
+    region: { type: "object", additionalProperties: true },
+    crossCheck: { type: "object", additionalProperties: true },
+    documents: { type: "object", additionalProperties: true },
+    caveats: {
+      type: "array",
+      items: { type: "string" },
+      description: "UI 에 반드시 노출해야 하는 주의 문구.",
+    },
+    rulesVersion: { type: "string" },
+    version: { type: "integer" },
+    createdAt: { type: "string", format: "date-time" },
+  },
+} as const;
+
 const ANALYSIS_JOB = {
   type: "object",
   required: ["id", "caseId", "status", "progress"],
@@ -504,6 +575,7 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
         ScheduleEvent: SCHEDULE_EVENT,
         Case: CASE,
         Verdict: VERDICT,
+        Analysis: ANALYSIS,
         AnalysisJob: ANALYSIS_JOB,
         AddressResult: ADDRESS_RESULT,
         ChecklistItem: CHECKLIST_ITEM,
@@ -869,7 +941,13 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
           summary: "저장된 최신 분석 결과",
           description: "재계산하지 않습니다. 화면 재진입 시 이 경로를 쓰세요.",
           parameters: [caseIdParam],
-          responses: { "200": jsonResponse("결과", { type: "object" }), ...errorResponses },
+          responses: {
+            "200": jsonResponse("결과", {
+              type: "object",
+              properties: { analysis: { $ref: "#/components/schemas/Analysis" } },
+            }),
+            ...errorResponses,
+          },
         },
       },
       "/v1/cases/{caseId}/analyses": {

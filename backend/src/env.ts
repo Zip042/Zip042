@@ -25,6 +25,25 @@ const EnvSchema = z
     /** 비우면 SUPABASE_URL 유무로 자동 결정된다. */
     ZIP042_MODE: z.enum(MODES).optional(),
 
+    /**
+     * 데모 배포 허용 플래그.
+     *
+     * 기본적으로 `NODE_ENV=production` + 목 모드는 **부팅이 차단**된다. 실데이터 없이
+     * 그럴듯한 응답을 내보내는 사고를 막기 위한 장치다(아래 superRefine 참고).
+     *
+     * 팀에게 보여주기 위한 배포처럼 **의도적으로** 목 데이터를 띄워야 할 때만 이 값을 켠다.
+     * 켜면 서버가 스스로 데모임을 밝힌다:
+     *   · 부팅 시 경고 로그
+     *   · `GET /v1/meta` 의 `demo: true`
+     *   · 모든 판정 응답 caveats 맨 앞에 데모 고지
+     *
+     * 실서비스에는 절대 켜지 말 것. 켠 채로 실키를 넣으면 고지만 붙고 동작은 live 다.
+     */
+    ZIP042_DEMO: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((v) => v === "true"),
+
     // Supabase — live 모드에서만 필수
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_ANON_KEY: z.string().min(20).optional(),
@@ -85,12 +104,14 @@ const EnvSchema = z
   .superRefine((v, ctx) => {
     if (v.mode === "mock") {
       // 목 모드가 운영 환경에 올라가면 실데이터 없이 그럴듯한 응답을 내보내게 된다. 부팅을 막는다.
-      if (v.NODE_ENV === "production") {
+      // ZIP042_DEMO=true 로 **의도를 명시**했을 때만 통과시킨다 — 그때는 서버가 스스로 데모임을 밝힌다.
+      if (v.NODE_ENV === "production" && !v.ZIP042_DEMO) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["ZIP042_MODE"],
           message:
-            "운영 환경(NODE_ENV=production)에서는 목 모드로 실행할 수 없습니다. Supabase 설정을 채우세요.",
+            "운영 환경(NODE_ENV=production)에서는 목 모드로 실행할 수 없습니다. Supabase 설정을 채우거나, " +
+            "팀 시연용 배포라면 ZIP042_DEMO=true 를 명시하세요(응답에 데모 고지가 붙습니다).",
         });
       }
       return;
@@ -126,6 +147,15 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 
 export function isMockMode(): boolean {
   return loadEnv().mode === "mock";
+}
+
+/**
+ * 목 데이터를 의도적으로 공개 배포한 상태인지.
+ * 이 값이 true 면 응답이 실데이터가 아님을 사용자에게 반드시 알려야 한다.
+ */
+export function isDemoDeployment(): boolean {
+  const env = loadEnv();
+  return env.ZIP042_DEMO && env.mode === "mock";
 }
 
 export function corsOrigins(env: Env): string[] {

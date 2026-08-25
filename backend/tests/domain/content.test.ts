@@ -197,6 +197,19 @@ describe("계약 체크리스트", () => {
     expect(sanitized).toEqual([...sanitized].sort());
   });
 
+  it("평문 필드에 마크다운이 섞이지 않는다", () => {
+    // 화면은 label · note 를 그대로 렌더한다. 마크다운을 넣으면 별표가 눈에 보인다.
+    // 마크다운이 허용되는 곳은 용어사전의 description 뿐이다.
+    for (const item of CHECKLIST_ITEMS) {
+      expect(item.label).not.toMatch(/\*\*/);
+      expect(item.note ?? "").not.toMatch(/\*\*/);
+    }
+    for (const term of GLOSSARY_TERMS) {
+      expect(term.term).not.toMatch(/\*\*/);
+      expect(term.summary).not.toMatch(/\*\*/);
+    }
+  });
+
   it("필수 항목이 각 단계에 최소 하나는 있다", () => {
     // 어느 단계든 "이것만은 반드시" 가 있어야 사용자가 우선순위를 판단할 수 있다.
     for (const stage of buildChecklistTemplate()) {

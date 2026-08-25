@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
 import { ZodError } from "zod";
-import { corsOrigins, loadEnv } from "./env.js";
+import { corsOrigins, isDemoDeployment, loadEnv } from "./env.js";
 import { buildOpenApiDocument } from "./openapi.js";
 import { AppError } from "./lib/errors.js";
 import { log, setLogLevel } from "./lib/logger.js";
@@ -28,7 +28,8 @@ import { isMarketPriceAvailable } from "./services/market-price.service.js";
 import { loadHolidays } from "./services/holidays.service.js";
 import { isOwnerMatchingEnabled } from "./services/region.service.js";
 import { RULES_VERSION } from "./services/analysis.service.js";
-import { seedReferenceData } from "./mock/bootstrap.js";
+import { seedReferenceData, seedSampleCases } from "./mock/bootstrap.js";
+import { SCENARIO_KEYS } from "./mock/fixtures.js";
 import { addressProviderName, isAddressSearchLive } from "./services/address.service.js";
 import { reapStaleJobs } from "./services/job.service.js";
 import { EXTRACTION_SCHEMA_VERSION } from "./services/extraction.service.js";
@@ -46,6 +47,22 @@ export function createApp() {
     log.warn("목 모드로 실행 중 — 외부 API를 호출하지 않고 픅스처로 응답합니다.", {
       guide: "GET /v1/dev 에서 사용법을 확인하세요.",
     });
+  }
+
+  if (isDemoDeployment()) {
+    // 목 데이터가 공개 주소로 나가는 상태다. 로그에서 이 사실이 묻히면 안 된다.
+    log.warn("⚠️ 데모 배포로 실행 중 — 모든 응답이 가짜 데이터입니다 (ZIP042_DEMO=true)", {
+      note: "실서비스에서는 이 플래그를 끄고 Supabase 설정을 채우세요.",
+    });
+
+    // 서버리스에서는 **인스턴스마다 인메모리 저장소가 따로** 있고, 콜드 스타트마다 비어 있다.
+    // 시연용 검사 건을 부팅 때 채워 두면 어느 인스턴스로 요청이 가도 볼 것이 있다.
+    // (사용자가 새로 만든 검사 건은 그 인스턴스에서만 살아 있다 — 데모의 한계다.)
+    void seedSampleCases(SCENARIO_KEYS).then(
+      (cases) => log.info("데모용 샘플 검사 건을 채웠습니다", { count: cases.length }),
+      (err: unknown) =>
+        log.warn("데모 시드 실패", { error: err instanceof Error ? err.message : String(err) }),
+    );
   }
 
   // 서버 재시작으로 중단된 분석 작업을 정리한다 (in-process 러너가 사라졌으므로).
@@ -110,9 +127,16 @@ export function createApp() {
       },
       addressProvider: addressProviderName(),
       mode: env.mode,
+      /**
+       * 목 데이터를 공개 배포한 상태. 프론트엔드는 이 값이 true 면
+       * "데모 데이터" 배너를 반드시 띄워야 한다.
+       */
+      demo: isDemoDeployment(),
       regionRiskDefaultRadiusM: env.REGION_RISK_RADIUS_M,
-      disclaimer:
-        "ZIP 042의 판정은 참고용 점검이며 법률 자문이 아닙니다. 최종 판단 전 전문가와 상담하세요.",
+      disclaimer: isDemoDeployment()
+        ? "⚠️ 데모 배포입니다. 실제 서류를 판독하지 않고 미리 만들어 둔 가짜 데이터로 응답합니다. " +
+          "실제 계약 판단에 절대 사용하지 마세요."
+        : "ZIP 042의 판정은 참고용 점검이며 법률 자문이 아닙니다. 최종 판단 전 전문가와 상담하세요.",
     });
   });
 

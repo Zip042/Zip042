@@ -27,3 +27,7 @@ supabase/.temp/
 # OS
 .DS_Store
 Thumbs.db
+
+# public/ 은 무시하지 않는다. vercel.json 의 outputDirectory 가 이 폴더를 가리키므로
+# 저장소에 없으면 배포가 "No Output Directory" 로 실패한다. 빌드 산출물이 아니라
+# 설정을 만족시키기 위한 안내 파일 하나뿐이다.

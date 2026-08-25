@@ -150,7 +150,8 @@ export const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: "registry_rechecked_balance",
     stage: "balance_move_in",
-    label: "잔금 지급 **직전에** 등기부를 다시 열람했다",
+    // label 은 평문이다. 마크다운을 넣으면 화면에 별표가 그대로 보인다(글로서리 description 만 마크다운).
+    label: "잔금 지급 직전에 등기부를 다시 열람했다",
     note: "계약일과 잔금일 사이에 근저당이 새로 설정되거나 소유자가 바뀔 수 있습니다.",
     required: true,
     relatedTerms: ["G_MORTGAGE"],
