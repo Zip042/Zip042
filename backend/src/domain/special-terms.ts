@@ -1,5 +1,6 @@
 import { formatKo, type DateOnly } from "../lib/date.js";
 import { formatKrw } from "./money.js";
+import { encodeJo, type LawKey } from "./law-references.js";
 
 /**
  * 특약 추천 엔진 (기획서 2 ① "무엇을 요구해야 하는지" / ④ 대화형 후속 질문).
@@ -44,6 +45,8 @@ export interface SpecialTermDefinition {
   clause: (ctx: TermContext) => string;
   /** 조건 없이 항상 추천하는 기본 특약인지 */
   baseline?: boolean;
+  /** 이 특약의 법적 근거 조문 (정적 인용). 원문은 lawinfo.service가 실시간으로 붙인다. */
+  legalBasis?: { law: LawKey; jo: string; label: string }[];
 }
 
 const D = (d: DateOnly | null | undefined, fallback: string) => (d ? formatKo(d) : fallback);
@@ -57,6 +60,7 @@ export const SPECIAL_TERM_LIBRARY: Record<string, SpecialTermDefinition> = {
     priority: 10,
     required: true,
     baseline: true,
+    legalBasis: [{ law: "주택임대차보호법", jo: encodeJo(3), label: "제3조" }],
     reason:
       "전입신고를 해도 법적 보호는 다음 날 0시부터 시작됩니다. 그 하루 사이에 임대인이 대출을 받으면 " +
       "은행이 내 보증금보다 앞서게 되는데, 이 특약이 그 상황에서 계약을 해제하고 보증금을 돌려받을 근거가 됩니다.",
@@ -238,6 +242,10 @@ export const SPECIAL_TERM_LIBRARY: Record<string, SpecialTermDefinition> = {
     title: "등기부 표기와 동일한 주소·동·호수 기재",
     priority: 35,
     required: true,
+    legalBasis: [
+      { law: "주택임대차보호법", jo: encodeJo(3), label: "제3조" },
+      { law: "주택임대차보호법", jo: encodeJo(3, 2), label: "제3조의2" },
+    ],
     reason:
       "확정일자와 전입신고는 주소가 등기부 표기와 일치해야 효력이 인정됩니다. 문패나 우편함 호수가 " +
       "등기부와 다른 건물이 실제로 많고, 이 경우 우선변제권을 잃을 수 있습니다.",
@@ -492,4 +500,15 @@ export function collectTermTriggers(
     }
   }
   return map;
+}
+
+/**
+ * 코드로 특약의 정적 법조문 인용을 찾는다.
+ *
+ * `special_terms` 테이블에는 이 값을 저장하지 않는다 — 법 인용은 배포 시점에만 바뀌는
+ * 정적 값이라 DB에 실어 나를 이유가 없다. `RecommendedTerm`이 DB에서 복원됐든 방금
+ * 계산됐든, 항상 코드로 라이브러리를 다시 조회하면 안전하다.
+ */
+export function legalBasisFor(code: string): NonNullable<SpecialTermDefinition["legalBasis"]> {
+  return SPECIAL_TERM_LIBRARY[code]?.legalBasis ?? [];
 }
