@@ -21,6 +21,7 @@ export interface CaseRow {
   total_floors: number | null;
   built_year: number | null;
   household_count: number | null;
+  business_registration_number: string | null;
   lease_type: "jeonse" | "monthly" | "semi_jeonse";
   deposit_krw: number;
   monthly_rent_krw: number;
@@ -38,7 +39,8 @@ export interface CaseRow {
 
 const CASE_COLUMNS =
   "id,user_id,title,status,road_address,jibun_address,detail_address,region_code,sigungu,lat,lng," +
-  "building_type,exclusive_area_m2,floor,total_floors,built_year,household_count,lease_type," +
+  "building_type,exclusive_area_m2,floor,total_floors,built_year,household_count," +
+  "business_registration_number,lease_type," +
   "deposit_krw,monthly_rent_krw,maintenance_fee_krw,contract_term_months,contract_date,balance_date," +
   "move_in_date,resident_registration_date,confirmed_date_plan,user_market_price_krw,created_at,updated_at";
 
@@ -58,6 +60,7 @@ function toRowPayload(input: NormalizedCaseInput): Record<string, unknown> {
     total_floors: input.totalFloors,
     built_year: input.builtYear,
     household_count: input.householdCount,
+    business_registration_number: input.businessRegistrationNumber,
     lease_type: input.leaseType,
     deposit_krw: input.depositKrw,
     monthly_rent_krw: input.monthlyRentKrw,
@@ -193,6 +196,9 @@ export function serializeCase(row: CaseRow) {
       totalFloors: row.total_floors,
       builtYear: row.built_year,
       householdCount: row.household_count,
+    },
+    lessor: {
+      businessRegistrationNumber: row.business_registration_number,
     },
     terms: {
       leaseType: row.lease_type,

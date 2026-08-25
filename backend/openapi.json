@@ -1510,6 +1510,11 @@
             "maximum": 120,
             "default": 24
           },
+          "businessRegistrationNumber": {
+            "type": "string",
+            "pattern": "^\\d{3}-\\d{2}-\\d{5}$",
+            "nullable": true
+          },
           "contractDate": {
             "type": "string",
             "nullable": true

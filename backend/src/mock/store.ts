@@ -32,6 +32,7 @@ const DEFAULTS: Record<string, () => Row> = {
     total_floors: null,
     built_year: null,
     household_count: null,
+    business_registration_number: null,
     lease_type: "monthly",
     deposit_krw: 0,
     monthly_rent_krw: 0,

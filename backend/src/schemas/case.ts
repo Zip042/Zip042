@@ -56,6 +56,15 @@ const propertyFields = {
   householdCount: z.number().int().min(1).max(1000).nullish(),
 };
 
+const lessorFields = {
+  /** 000-00-00000 형식. 법인 임대인일 때만 입력. 국세청 진위확인 API에 쓰인다. */
+  businessRegistrationNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{3}-\d{2}-\d{5}$/, "사업자등록번호는 000-00-00000 형식입니다.")
+    .nullish(),
+};
+
 const moneyFields = {
   leaseType: leaseTypeSchema.default("monthly"),
   deposit: nonNegativeInt.default(0),
@@ -70,6 +79,7 @@ export const createCaseSchema = z
     amountUnit,
     ...propertyFields,
     ...moneyFields,
+    ...lessorFields,
     ...scheduleFields,
   })
   .superRefine((v, ctx) => {
@@ -124,6 +134,7 @@ export interface NormalizedCaseInput {
   totalFloors: number | null;
   builtYear: number | null;
   householdCount: number | null;
+  businessRegistrationNumber: string | null;
   leaseType: z.infer<typeof leaseTypeSchema>;
   depositKrw: number;
   monthlyRentKrw: number;
@@ -157,6 +168,7 @@ export function normalizeCaseInput(input: CreateCaseInput): NormalizedCaseInput 
     totalFloors: input.totalFloors ?? null,
     builtYear: input.builtYear ?? null,
     householdCount: input.householdCount ?? null,
+    businessRegistrationNumber: input.businessRegistrationNumber ?? null,
     leaseType: input.leaseType,
     depositKrw: toKrw(input.deposit) ?? 0,
     monthlyRentKrw: toKrw(input.monthlyRent) ?? 0,

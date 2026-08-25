@@ -112,6 +112,40 @@ describe("검사 건 생성 → 문서 등록 → 분석 (전체 파이프라인
     caseId = body.case.id;
   });
 
+  it("사업자등록번호 형식이 틀리면 400", async () => {
+    const res = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        title: "형식 오류",
+        leaseType: "jeonse",
+        amountUnit: "man",
+        deposit: 9000,
+        businessRegistrationNumber: "12345",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("사업자등록번호를 저장하고 그대로 돌려받는다", async () => {
+    const res = await app.request("/v1/cases", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        title: "법인 임대인",
+        leaseType: "jeonse",
+        amountUnit: "man",
+        deposit: 9000,
+        businessRegistrationNumber: "123-45-67890",
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = await json<{ case: { lessor: { businessRegistrationNumber: string | null } } }>(
+      res,
+    );
+    expect(body.case.lessor.businessRegistrationNumber).toBe("123-45-67890");
+  });
+
   it("서명 업로드 URL → PUT → 등록 3단계가 동작한다", async () => {
     const urlRes = await app.request(`/v1/cases/${caseId}/documents/upload-url`, {
       method: "POST",
