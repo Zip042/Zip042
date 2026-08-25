@@ -244,6 +244,108 @@ export const getCase = (caseId: string) =>
 export const getAnalysis = (caseId: string) =>
   apiRequest<Ok<paths["/v1/cases/{caseId}/analysis"]["get"]>>(`/v1/cases/${caseId}/analysis`);
 
+/** 검사 건 생성. 금액은 `amountUnit: "man"` 으로 보내면 서버가 원 단위로 정규화합니다. */
+export const createCase = (body: Record<string, unknown>) =>
+  apiRequest<Ok<paths["/v1/cases"]["post"]>>("/v1/cases", { method: "POST", body });
+
+/** 검사 건 수정 (계약 조건 · 일정). */
+export const updateCase = (caseId: string, body: Record<string, unknown>) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}"]["put"]>>(`/v1/cases/${caseId}`, {
+    method: "PUT",
+    body,
+  });
+
+/** 서명 업로드 URL 발급. 받은 URL 로 파일을 직접 PUT 합니다. */
+export const createUploadUrl = (
+  caseId: string,
+  body: { fileName: string; docType: string; mimeType: string },
+) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/documents/upload-url"]["post"]>>(
+    `/v1/cases/${caseId}/documents/upload-url`,
+    { method: "POST", body },
+  );
+
+/**
+ * 발급받은 서명 URL 로 파일을 올립니다.
+ *
+ * 목 모드의 서명 URL 은 백엔드 자신(`/v1/dev/storage/{token}`)을 가리킵니다. 절대 URL 로
+ * 그대로 PUT 하면 개발 서버(5188)에서 백엔드(8787)로 **교차 출처 요청**이 되어 CORS 에
+ * 걸립니다. 그 경로만 상대경로로 바꿔 dev 프록시를 타게 합니다.
+ * 실제 Supabase 의 URL 은 다른 호스트이므로 그대로 씁니다.
+ */
+export async function uploadToSignedUrl(signedUrl: string, file: File): Promise<void> {
+  let target = signedUrl;
+  try {
+    const parsed = new URL(signedUrl, window.location.origin);
+    if (parsed.pathname.startsWith("/v1/dev/storage/")) target = parsed.pathname + parsed.search;
+  } catch {
+    /* 파싱할 수 없으면 받은 값을 그대로 쓴다 */
+  }
+
+  const res = await fetch(target, {
+    method: "PUT",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, {
+      error: { code: "UPLOAD_FAILED", message: `파일 업로드에 실패했습니다. (HTTP ${res.status})` },
+    });
+  }
+}
+
+/** 업로드한 파일을 검사 건에 등록합니다. */
+export const registerDocument = (
+  caseId: string,
+  body: {
+    docType: string;
+    storagePath: string;
+    mimeType: string;
+    sizeBytes: number;
+    originalName?: string;
+    mockScenario?: string;
+  },
+) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/documents"]["post"]>>(`/v1/cases/${caseId}/documents`, {
+    method: "POST",
+    body,
+  });
+
+export const listDocuments = (caseId: string) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/documents"]["get"]>>(`/v1/cases/${caseId}/documents`);
+
+/** 분석을 백그라운드 작업으로 등록합니다. 진행률은 작업 조회로 확인합니다. */
+export const startAnalysisJob = (caseId: string, body: Record<string, unknown> = {}) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/analyze/jobs"]["post"]>>(
+    `/v1/cases/${caseId}/analyze/jobs`,
+    { method: "POST", body },
+  );
+
+export const getAnalysisJob = (caseId: string, jobId: string) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/analyze/jobs/{jobId}"]["get"]>>(
+    `/v1/cases/${caseId}/analyze/jobs/${jobId}`,
+  );
+
+/** 동기 분석. 서버리스처럼 백그라운드 실행이 보장되지 않는 환경에서 씁니다. */
+export const analyzeNow = (caseId: string, body: Record<string, unknown> = {}) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/analyze"]["post"]>>(`/v1/cases/${caseId}/analyze`, {
+    method: "POST",
+    body,
+  });
+
+/** 이 집에 맞춘 추천 특약. */
+export const getCaseSpecialTerms = (caseId: string) =>
+  apiRequest<Ok<paths["/v1/cases/{caseId}/special-terms"]["get"]>>(
+    `/v1/cases/${caseId}/special-terms`,
+  );
+
+/** 일정 미리보기 — 검사 건을 만들지 않고 날짜만으로 위험을 계산합니다. */
+export const previewSchedule = (body: Record<string, unknown>) =>
+  apiRequest<Ok<paths["/v1/schedule/preview"]["post"]>>("/v1/schedule/preview", {
+    method: "POST",
+    body,
+  });
+
 /** 판정 항목 코드로 용어 찾기 — 결과 화면의 "이게 무슨 말이죠?" (공개). */
 export const getTermsByFinding = (findingCode: string) =>
   apiRequest<Ok<paths["/v1/glossary/by-finding/{code}"]["get"]>>(

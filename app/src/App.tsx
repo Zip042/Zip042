@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router";
 import Layout from "./components/Layout";
+import { AnalysisFlowProvider } from "./state/AnalysisFlow";
 import Home from "./pages/Home";
 import Analyze from "./pages/Analyze";
 import AnalyzeDocuments from "./pages/AnalyzeDocuments";
@@ -11,6 +12,7 @@ import Glossary from "./pages/Glossary";
 export default function App() {
   return (
     <BrowserRouter>
+      <AnalysisFlowProvider>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
@@ -22,6 +24,7 @@ export default function App() {
           <Route path="/glossary" element={<Glossary />} />
         </Route>
       </Routes>
+      </AnalysisFlowProvider>
     </BrowserRouter>
   );
 }

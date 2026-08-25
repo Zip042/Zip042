@@ -1463,7 +1463,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": Record<string, never>;
+                        "application/json": {
+                            analysis?: components["schemas"]["Analysis"];
+                        };
                     };
                 };
                 /** @description 입력값 오류 */
@@ -3251,6 +3253,80 @@ export interface components {
             counts?: {
                 [key: string]: number;
             };
+        };
+        Analysis: {
+            verdict: components["schemas"]["Verdict"];
+            score?: number;
+            contractable?: boolean;
+            headline?: string;
+            summary?: string;
+            findings: components["schemas"]["Finding"][];
+            specialTerms: components["schemas"]["SpecialTerm"][];
+            valuation: {
+                evaluable?: boolean;
+                /**
+                 * @description 안전 / 주의 / 위험 / 매우 위험
+                 * @enum {string}
+                 */
+                level?: "safe" | "caution" | "danger" | "critical";
+                /** @description (선순위 채권 + 내 보증금) / 시세 */
+                burdenRatio?: number | null;
+                burdenRatioPercent?: number | null;
+                seniorClaimsKrw?: number | null;
+                /** @description 다가구 선순위 보증금을 모르는 상태. true 면 실제 위험이 더 클 수 있다. */
+                seniorDepositUnknown?: boolean;
+                marketPriceKrw?: number | null;
+                marketPrice?: {
+                    estimatedKrw?: number;
+                    /**
+                     * @description unavailable 이면 시세를 못 구한 것이다. estimatedKrw 를 믿지 말 것.
+                     * @enum {string}
+                     */
+                    source?: "molit_rtms" | "user_input" | "unavailable";
+                    method?: string;
+                    confidence?: number;
+                };
+                simulation?: {
+                    [key: string]: unknown;
+                };
+                guarantee?: {
+                    [key: string]: unknown;
+                };
+            };
+            schedule: {
+                evaluable?: boolean;
+                /**
+                 * @description 안전 / 주의 / 위험 / 매우 위험
+                 * @enum {string}
+                 */
+                level?: "safe" | "caution" | "danger" | "critical";
+                /** Format: date-time */
+                opposingPowerEffectiveAt?: string | null;
+                /** Format: date-time */
+                priorityRightEffectiveAt?: string | null;
+                /** @description 잔금일과 대항력 발생일 사이의 무방비 구간. */
+                unprotectedWindow?: {
+                    days?: number;
+                    from?: string;
+                    to?: string;
+                } | null;
+                events?: components["schemas"]["ScheduleEvent"][];
+            };
+            region?: {
+                [key: string]: unknown;
+            };
+            crossCheck?: {
+                [key: string]: unknown;
+            };
+            documents?: {
+                [key: string]: unknown;
+            };
+            /** @description UI 에 반드시 노출해야 하는 주의 문구. */
+            caveats: string[];
+            rulesVersion?: string;
+            version?: number;
+            /** Format: date-time */
+            createdAt?: string;
         };
         AnalysisJob: {
             /** Format: uuid */
