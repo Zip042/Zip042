@@ -727,7 +727,7 @@ export interface paths {
         put?: never;
         /**
          * 서명 업로드 URL 발급 (1/3단계)
-         * @description 20MB 파일을 API 서버로 통과시키지 않기 위해 클라이언트가 Storage 로 직접 PUT 합니다. 한도: 30회/시간.
+         * @description 파일을 API 서버로 통과시키지 않기 위해 클라이언트가 Storage 로 직접 PUT 합니다(10MB 한도). 한도: 30회/시간.
          */
         post: {
             parameters: {
