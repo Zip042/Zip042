@@ -3,14 +3,8 @@ import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Stepper from "@/components/Stepper";
-import {
-  getAnalysis,
-  getAnalysisJob,
-  getCase,
-  previewSchedule,
-  startAnalysisJob,
-  updateCase,
-} from "@/lib/api";
+import { getAnalysis, getCase, previewSchedule, updateCase } from "@/lib/api";
+import { runAnalysis } from "@/lib/runAnalysis";
 import { toMessage, useAsync } from "@/lib/useAsync";
 import { useAnalysisFlow } from "@/state/AnalysisFlow";
 
@@ -143,18 +137,8 @@ export default function AnalyzeDetails() {
         residentRegistrationDate: moveInDate || null,
       });
 
-      const job = await startAnalysisJob(caseId);
-      const jobId = (job as unknown as { job: { id: string } }).job.id;
-      for (let i = 0; i < 120; i += 1) {
-        const res = (await getAnalysisJob(caseId, jobId)) as unknown as {
-          job: { status: string; errorMessage: string | null };
-        };
-        if (res.job.status === "succeeded") break;
-        if (res.job.status === "failed" || res.job.status === "canceled") {
-          throw new Error(res.job.errorMessage ?? "분석이 중단되었습니다.");
-        }
-        await new Promise((r) => setTimeout(r, 1000));
-      }
+      const analysis = await runAnalysis(caseId);
+      if (analysis) flow.update({ lastAnalysis: analysis });
       navigate("/analyze/result");
     } catch (err) {
       setError(toMessage(err));

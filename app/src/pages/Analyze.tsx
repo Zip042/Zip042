@@ -3,15 +3,8 @@ import { useNavigate } from "react-router";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import Stepper from "@/components/Stepper";
-import {
-  createCase,
-  getCase,
-  createUploadUrl,
-  getAnalysisJob,
-  registerDocument,
-  startAnalysisJob,
-  uploadToSignedUrl,
-} from "@/lib/api";
+import { createCase, createUploadUrl, getCase, registerDocument, uploadToSignedUrl } from "@/lib/api";
+import { runAnalysis } from "@/lib/runAnalysis";
 import { toMessage } from "@/lib/useAsync";
 import { useAnalysisFlow } from "@/state/AnalysisFlow";
 
@@ -117,46 +110,25 @@ export default function Analyze() {
 
       flow.update({ registryFileName: file.name });
 
-      // 4) 분석 작업 등록 후 진행률 폴링
+      // 4) 분석 실행. 서버리스에서는 비동기 작업이 실행되지 않으므로 runAnalysis 가
+      //    `/v1/meta` 의 capabilities 를 보고 동기·비동기 경로를 알아서 고른다.
       setPhase("analyzing");
-      const job = await startAnalysisJob(caseId);
-      const jobId = (job as unknown as { job: { id: string } }).job.id;
-      await pollJob(caseId, jobId);
+      const analysis = await runAnalysis(caseId, {
+        onProgress: ({ progress, step }) => {
+          setProgress(Math.max(35, progress));
+          setStep(step);
+        },
+      });
+      if (analysis) flow.update({ lastAnalysis: analysis });
+      setPhase("done");
+      setProgress(100);
+      setStep("완료");
     } catch (err) {
       setError(toMessage(err));
       setPhase("idle");
       setProgress(0);
       setStep(null);
     }
-  }
-
-  /**
-   * 작업이 끝날 때까지 상태를 확인한다.
-   *
-   * 진행 단계 문구는 **서버가 정한다**. "지금 무엇을 하는 중"인지는 서버만 알고,
-   * 화면이 따로 지어내면 실제 진행과 어긋난다.
-   */
-  async function pollJob(caseId: string, jobId: string) {
-    for (let i = 0; i < 120; i += 1) {
-      const res = (await getAnalysisJob(caseId, jobId)) as unknown as {
-        job: { status: string; progress: number; step: string | null; errorMessage: string | null };
-      };
-      const job = res.job;
-      setProgress(Math.max(35, job.progress));
-      setStep(job.step);
-
-      if (job.status === "succeeded") {
-        setPhase("done");
-        setProgress(100);
-        setStep("완료");
-        return;
-      }
-      if (job.status === "failed" || job.status === "canceled") {
-        throw new Error(job.errorMessage ?? "분석이 중단되었습니다. 다시 시도해 주세요.");
-      }
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-    throw new Error("분석이 예상보다 오래 걸립니다. 잠시 후 결과 화면에서 확인해 주세요.");
   }
 
   const busy = phase === "uploading" || phase === "analyzing";

@@ -17,9 +17,22 @@ export interface FlowState {
   registryFileName: string | null;
   /** 서류 단계를 건너뛰었는지 — 스텝 표시에 쓴다. */
   skippedDocuments: boolean;
+  /**
+   * 방금 받은 판정 결과.
+   *
+   * 보통은 결과 화면이 서버에서 다시 읽는다. 다만 데모 배포처럼 서버가 검사 건을
+   * 잃어버리는 환경(서버리스 인스턴스마다 인메모리 저장소가 따로다)에서는 이 값이
+   * 대비책이 된다 — **이번 세션에서 실제로 받은 판정**이므로 지어낸 값이 아니다.
+   */
+  lastAnalysis: Record<string, unknown> | null;
 }
 
-const EMPTY: FlowState = { caseId: null, registryFileName: null, skippedDocuments: false };
+const EMPTY: FlowState = {
+  caseId: null,
+  registryFileName: null,
+  skippedDocuments: false,
+  lastAnalysis: null,
+};
 
 function read(): FlowState {
   try {

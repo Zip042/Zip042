@@ -121,7 +121,18 @@ export default function AnalyzeResult() {
     );
   }
 
-  if (analysis.error || !analysis.data) {
+  /**
+   * 서버에서 못 읽으면 **이번 세션에서 실제로 받은 판정**으로 보여준다.
+   *
+   * 데모 배포는 서버리스라 인스턴스마다 인메모리 저장소가 따로 있고, 방금 만든 검사 건이
+   * 다음 요청에서 404 가 될 수 있다. 지어낸 값이 아니라 조금 전 이 화면이 받은 결과이므로
+   * 보여주는 것이 맞다 — 대신 서버가 살아 있으면 언제나 서버 값이 우선이다.
+   */
+  const serverAnalysis = (analysis.data as unknown as { analysis?: Record<string, unknown> } | null)
+    ?.analysis;
+  const a = serverAnalysis ?? flow.lastAnalysis;
+
+  if (!a) {
     return (
       <EmptyState
         title="판정 결과를 불러오지 못했습니다"
@@ -130,8 +141,6 @@ export default function AnalyzeResult() {
       />
     );
   }
-
-  const a = (analysis.data as unknown as { analysis: Record<string, unknown> }).analysis;
   const verdict = a.verdict as Verdict;
   const findings = (a.findings ?? []) as Finding[];
   const valuation = a.valuation as {

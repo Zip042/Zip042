@@ -3,11 +3,9 @@ import type { paths } from "./api-types";
 /**
  * ZIP 042 백엔드 API 클라이언트.
  *
- * ## 현재 상태
- *
- * **화면은 아직 이 클라이언트를 쓰지 않습니다.** 각 페이지는 여전히 하드코딩된 목업
- * 데이터로 그려집니다. 기능이 양쪽 다 완성되면 그때 화면을 하나씩 갈아끼웁니다.
- * 지금 이 파일이 있는 이유는 **연결 통로와 타입을 미리 확정**해 두기 위해서입니다.
+ * 화면은 전부 이 클라이언트를 통해 서버와 이야기합니다. 페이지에서 경로 문자열을
+ * 직접 쓰지 마세요 — 오타가 런타임까지 살아남고, 백엔드가 경로를 바꿨을 때 어디를
+ * 고쳐야 할지 알 수 없습니다.
  *
  * ## 타입은 어디서 오는가
  *
@@ -20,9 +18,14 @@ import type { paths } from "./api-types";
  *
  * ## 개발 중 서버 주소
  *
- * 기본값은 `/v1` 상대경로이고, `vite.config.ts` 의 프록시가 백엔드로 넘깁니다.
- * 이렇게 하면 브라우저 입장에서 같은 오리진이라 **CORS 를 신경 쓸 필요가 없습니다**.
- * 배포처럼 다른 오리진을 직접 부르려면 `.env` 에 `VITE_API_BASE_URL` 을 넣으세요.
+ * 두 방식을 지원합니다.
+ *
+ *  - **개발** — `VITE_API_BASE_URL` 을 비워 두면 `/v1` 상대경로를 쓰고 `vite.config.ts`
+ *    의 프록시가 백엔드로 넘깁니다. 같은 오리진이라 CORS 를 신경 쓸 필요가 없습니다.
+ *  - **배포** — `VITE_API_BASE_URL` 에 백엔드 주소를 넣으면 브라우저가 직접 부릅니다.
+ *    이때는 백엔드의 `CORS_ORIGINS` 에 프론트 주소가 들어 있어야 합니다.
+ *    (Vercel 의 SPA 폴백이 외부 rewrite 보다 먼저 걸려 프록시가 동작하지 않으므로,
+ *     배포에서는 직접 호출 방식을 씁니다.)
  */
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -277,7 +280,13 @@ export async function uploadToSignedUrl(signedUrl: string, file: File): Promise<
   let target = signedUrl;
   try {
     const parsed = new URL(signedUrl, window.location.origin);
-    if (parsed.pathname.startsWith("/v1/dev/storage/")) target = parsed.pathname + parsed.search;
+    if (parsed.pathname.startsWith("/v1/dev/storage/")) {
+      // 목 모드의 서명 URL 은 백엔드 자신을 가리킨다.
+      //  · BASE_URL 이 비어 있으면 = dev 프록시를 쓰는 중 → 상대경로로 바꿔 같은 오리진으로 보낸다.
+      //  · BASE_URL 이 있으면 = 백엔드를 직접 부르는 중 → 그 오리진에 붙여 보낸다.
+      //    (백엔드의 PUBLIC_BASE_URL 이 비어 있으면 localhost 가 박혀 오므로 여기서 바로잡는다.)
+      target = BASE_URL ? `${BASE_URL}${parsed.pathname}${parsed.search}` : parsed.pathname + parsed.search;
+    }
   } catch {
     /* 파싱할 수 없으면 받은 값을 그대로 쓴다 */
   }
