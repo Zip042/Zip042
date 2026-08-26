@@ -454,14 +454,14 @@ const checks: Check[] = [
       const key = env?.NTS_BIZ_SERVICE_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
       if (!key) return skip("키 없음", "법인 임대인의 휴폐업 여부를 확인하지 못합니다.");
 
-      const { fetchBusinessStatus } = await import("../src/services/public-data/business-status.js");
-      // 국세청 공식 예시 번호. 실재 여부와 무관하게 응답 형식을 확인하는 용도다.
+      const { fetchBusinessStatus } = await import("../src/services/business-registration.service.js");
+      // 실재하지 않는 번호로 부른다. 응답 **형식**이 오는지만 보면 되고,
+      // 등록되지 않은 번호도 국세청은 정상 응답으로 돌려준다.
       const res = await fetchBusinessStatus("0000000000");
-      if (!res.ok) {
-        if (res.failure === "no_data") return ok("키 유효 · 응답 형식 정상");
-        return fail(res.reason);
+      if (res.source === "unavailable") {
+        return fail("응답을 받지 못했습니다.", "활용신청 승인 여부와 서비스 키를 확인하세요.");
       }
-      return ok(`키 유효 · 응답 형식 정상 (등록여부 ${res.data.registered ? "있음" : "없음"})`);
+      return ok(`키 유효 · 응답 형식 정상 (등록여부 ${res.registered ? "있음" : "없음"})`);
     },
   },
 

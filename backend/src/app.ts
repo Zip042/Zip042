@@ -29,7 +29,7 @@ import { extractionProvider } from "./services/extraction.service.js";
 import { isJusoConfigured } from "./services/public-data/juso.js";
 import { isBuildingLedgerConfigured } from "./services/public-data/building-ledger.js";
 import { isHousingPriceConfigured } from "./services/public-data/housing-price.js";
-import { isBusinessStatusConfigured } from "./services/public-data/business-status.js";
+import { isBusinessRegistrationAvailable } from "./services/business-registration.service.js";
 import { isMarketPriceAvailable } from "./services/market-price.service.js";
 import { loadHolidays } from "./services/holidays.service.js";
 import { isOwnerMatchingEnabled } from "./services/region.service.js";
@@ -130,7 +130,7 @@ export function createApp() {
         /** HUG 보증 가능 여부 판정 (공시가격 기준). */
         guaranteeAssessment: isHousingPriceConfigured(),
         /** 법인 임대인 실재·휴폐업 확인. */
-        businessVerification: isBusinessStatusConfigured(),
+        businessVerification: isBusinessRegistrationAvailable(),
         /**
          * 비동기 분석 사용 가능 여부.
          * 서버리스에서는 응답 후 백그라운드 실행이 보장되지 않으므로, 그 환경에서는
