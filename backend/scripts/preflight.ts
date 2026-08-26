@@ -437,20 +437,29 @@ const checks: Check[] = [
 
   {
     key: "housing-price",
-    label: "공동주택가격 (HUG 보증 판정)",
-    async run(env) {
-      const key =
-        env?.MOLIT_HOUSING_PRICE_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
-      if (!key) return skip("키 없음", "보증보험 가입 가능 여부를 판정하지 못합니다.");
-
-      const { fetchHousingPrice } = await import("../src/services/public-data/housing-price.js");
-      const res = await fetchHousingPrice({ regionCode: "3017010100" });
-      if (!res.ok) {
-        if (res.failure === "no_data") return ok("키 유효 · 해당 지역 자료 없음 (응답 형식은 정상)");
-        return fail(res.reason, res.failure === "unexpected_format" ? "응답 필드명이 바뀌었을 수 있습니다." : undefined);
+    label: "공동주택가격 (HUG 보증 판정, 대전 · 반기 갱신 정적 데이터)",
+    async run() {
+      // 키가 아니라 커밋된 data/housing-price/daejeon.json 파일로 동작한다
+      // (CLAUDE.md · domain/housing-price-import.ts 참고 — data.go.kr 에 이 API 자체가 없다).
+      // 그래서 이 검사는 외부 호출이 아니라 "번들된 데이터가 실제로 읽히는지" 확인이다.
+      const { isHousingPriceConfigured, fetchHousingPrice } = await import(
+        "../src/services/public-data/housing-price.js"
+      );
+      if (!isHousingPriceConfigured()) {
+        return fail(
+          "data/housing-price/daejeon.json 을 찾지 못했습니다.",
+          "npm run import:housing-price 로 다시 만들거나, 파일이 커밋됐는지 확인하세요.",
+        );
       }
+      // 실제로 존재하는 단지로 조회해 파이프라인 전체(파일 로드 → 매칭 → 계산)를 확인한다.
+      const res = await fetchHousingPrice({
+        regionCode: "3011010100",
+        buildingName: "뜰안채주상복합",
+        exclusiveAreaM2: 59.9,
+      });
+      if (!res.ok) return fail(res.reason, "domain/housing-price-import.ts 의 매칭 규칙을 확인하세요.");
       return ok(
-        `키 유효 · ${res.data.matchedName ?? "단지"} 공시가 ${Math.round(res.data.officialPriceKrw / 10_000).toLocaleString("ko-KR")}만원`,
+        `데이터 정상 · ${res.data.matchedName} 표본 ${res.data.sampleSize}건 · 59.9㎡ 공시가 ${Math.round(res.data.officialPriceKrw / 10_000).toLocaleString("ko-KR")}만원`,
       );
     },
   },

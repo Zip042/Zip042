@@ -96,8 +96,6 @@ const EnvSchema = z
     MOLIT_RTMS_SERVICE_KEY: z.string().optional(),
     /** 국토교통부 건축HUB 건축물대장 (15134735) — 위반건축물·용도 확인. */
     MOLIT_BUILDING_LEDGER_KEY: z.string().optional(),
-    /** 국토교통부 공동주택가격정보 (15124003) — HUG 보증 가능 여부(공시가 × 126%). */
-    MOLIT_HOUSING_PRICE_KEY: z.string().optional(),
     /** 한국부동산원 부동산통계 (15134761) — 전세가율 통계 보정. */
     REB_STATS_SERVICE_KEY: z.string().optional(),
     /** 국세청 사업자등록 진위확인 (15081808) — 법인 임대인 실재·휴폐업 확인. */

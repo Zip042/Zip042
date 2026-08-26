@@ -31,3 +31,8 @@ Thumbs.db
 # public/ 은 무시하지 않는다. vercel.json 의 outputDirectory 가 이 폴더를 가리키므로
 # 저장소에 없으면 배포가 "No Output Directory" 로 실패한다. 빌드 산출물이 아니라
 # 설정을 만족시키기 위한 안내 파일 하나뿐이다.
+
+# 브이월드 공동주택가격정보 원본(zip, 수백KB~MB 단위, 로그인해야 받을 수 있음).
+# scripts/import-housing-price.ts 가 이걸 읽어 daejeon.json 으로 바꾼다.
+# 커밋하는 건 daejeon.json 뿐이다 — 원본은 반기마다 사람이 다시 받는다.
+data/housing-price/*.zip

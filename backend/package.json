@@ -20,7 +20,8 @@
     "start:mock": "node dist/src/server.mock.js",
     "openapi": "tsx scripts/generate-openapi.ts",
     "preflight": "tsx scripts/preflight.ts",
-    "extract": "tsx scripts/extract-once.ts"
+    "extract": "tsx scripts/extract-once.ts",
+    "import:housing-price": "tsx scripts/import-housing-price.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
@@ -33,7 +34,10 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^22.15.0",
+    "adm-zip": "^0.6.0",
+    "iconv-lite": "^0.7.3",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"

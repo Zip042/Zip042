@@ -1,129 +1,160 @@
-import { loadEnv } from "../../env.js";
-import { callPublicData, fail, ok, pickField, pickItems, toInt, type PublicDataResult } from "./client.js";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { fail, ok, type PublicDataResult } from "./client.js";
+import {
+  findHousingPriceGroup,
+  type HousingPriceGroup,
+} from "../../domain/housing-price-import.js";
 
 /**
- * 국토교통부 공동주택가격정보 (포털 데이터셋 15124003) — **공시가격**.
+ * 국토교통부 공동주택가격정보 — **공시가격** (대전만, 반기 갱신 정적 데이터).
+ *
+ * ## 왜 API 가 아니라 파일인가
+ *
+ * 포털 데이터셋 15124003 "국토교통부_공동주택가격정보(WMS/WFS/속성정보)"는 REST API 가
+ * **아니다.** 실제로 호출하면 `NO_OPENAPI_SERVICE_ERROR` 가 난다. 포털 페이지의
+ * "API 유형: LINK" 가 그 증거였다 — data.go.kr 안에 스펙이 없다는 뜻이다.
+ *
+ * 진짜 데이터는 브이월드(vworld.kr)가 **로그인한 사용자에게만** 자치구별 zip 으로 준다.
+ * 자동 스크립트가 대신 받을 수 없는 구조라, 사람이 반기(6개월)마다 한 번 받아
+ * `npm run import:housing-price` 로 정적 JSON(`data/housing-price/daejeon.json`)으로
+ * 바꿔 커밋해 둔다. 원본 파싱·집계 규칙은 `domain/housing-price-import.ts` 에 있다.
+ *
+ * ## 왜 대전만인가
+ *
+ * 이 서비스는 대전 기준으로 시작했다(REGION_THRESHOLDS · classifyRegion 등도 대전이
+ * 정확하고 그 외 지역은 보수적 근사다). 전국을 받으면 원본만 수백MB 다. 다른 지역이
+ * 필요해지면 같은 zip 을 추가로 받아 import 스크립트를 다시 돌리면 된다.
  *
  * ## 왜 시세가 아니라 공시가격이 따로 필요한가
  *
- * **HUG 전세보증금반환보증의 심사 기준이 공시가격이기 때문이다.**
- *
- * HUG 는 실거래 시세가 아니라 공시가격에 일정 배율을 곱한 값을 주택가격으로 본다.
- * 그래서 "실거래가로는 여유가 있는데 보증보험은 거절되는" 상황이 생긴다. 사용자에게
- * 가장 실질적인 정보는 "이 조건으로 보증보험에 들 수 있는가"이므로, 시세와 별개로
- * 공시가격을 알아야 한다.
+ * **HUG 전세보증금반환보증의 심사 기준이 공시가격이기 때문이다.** HUG 는 실거래
+ * 시세가 아니라 공시가격에 일정 배율을 곱한 값을 주택가격으로 본다. 그래서
+ * "실거래가로는 여유가 있는데 보증보험은 거절되는" 상황이 생긴다.
  *
  * ⚠️ **배율은 반드시 확인하고 쓸 것.**
  *    공동주택 126% 는 2026년 8월 기준으로 팀이 정리한 값이다. HUG 는 이 배율과
  *    담보인정비율(전세가율 상한)을 **수시로 바꾼다.** 아래 상수를 그대로 믿지 말고
  *    HUG 공지로 확인한 뒤 갱신하세요. 틀리면 "가입 가능"이라고 잘못 안내하게 된다.
- *
- * ⚠️ **아래 ENDPOINT 는 미검증 — 실제 키로 호출하면 `NO_OPENAPI_SERVICE_ERROR`(코드 12) 가
- *    난다.** 포털 페이지의 "API 유형"이 `LINK` 로 표시되는데, 이는 data.go.kr 안에 스펙이
- *    없고 국가공간정보센터(관리부서)가 별도로 문서를 낸다는 뜻이다. 이름 그대로
- *    "WMS/WFS/속성정보" 이므로 RTMS 류의 단순 REST 가 아니라 OGC 지도 서비스(WMS/WFS)
- *    + 별도 속성 조회 API 조합일 가능성이 높다. 포털 "상세설명" 문서(로그인 후 열람)나
- *    관리부서(국가공간정보센터, 02-1661-0115)에 문의해 실제 오퍼레이션을 확인하고 나서
- *    이 상수를 고칠 것. 그때까지 이 기능(HUG 참고 판정)은 조용히 `unexpected_format` 으로
- *    빠진다 — 판정 전체를 막지는 않는다(HUG 판정은 참고용 신호일 뿐이다).
  */
 
-const ENDPOINT = "/1613000/AptListService2/getLegaldongAptList";
-
-/**
- * 공시가격 → 주택가격 인정 배율.
- *
- * 근거: 팀 정리 문서 "집톡 필요 API 요약"(2026-08) — 공동주택 공시가 × 126%.
- * 운영 전 HUG 공지로 재확인이 필요한 값이다.
- */
 export const HUG_PRICE_MULTIPLIER = 1.26;
-
-/**
- * 담보인정비율 — (선순위 채권 + 보증금)이 인정 주택가격의 이 비율을 넘으면 거절된다.
- * 신축·비아파트에 따라 달라지므로 보수적으로 90% 를 쓴다.
- */
 export const HUG_LTV_CAP = 0.9;
 
-export interface HousingPriceInfo {
-  /** 공시가격(원). */
-  officialPriceKrw: number;
-  /** 기준 연도. */
-  baseYear: string | null;
-  /** 단지·동·호 식별에 쓴 이름. 조회가 맞았는지 사용자가 확인할 수 있게. */
-  matchedName: string | null;
+/** 대전 5개 자치구 법정동코드 앞5자리. 이 밖의 지역은 데이터가 없다. */
+const DAEJEON_SIGUNGU_CODES = new Set(["30110", "30140", "30170", "30200", "30230"]);
+
+interface HousingPriceFile {
+  generatedAt: string;
+  baseYear: string;
+  groups: HousingPriceGroup[];
+}
+
+let cached: HousingPriceFile | null | undefined; // undefined = 아직 안 읽음, null = 읽었는데 없음/실패
+
+/**
+ * `data/housing-price/daejeon.json` 을 찾아 읽는다.
+ *
+ * 현재 실행 파일 위치에서 위로 올라가며 찾는다 — `tsx` 로 `src/` 에서 바로 돌 때와
+ * `tsc` 빌드 후 `dist/src/` 에서 돌 때 상대 깊이가 다르기 때문이다(빌드는 non-TS
+ * 자산을 dist 로 복사하지 않는다). 고정된 `../../..` 대신 실제로 존재하는 지점을
+ * 찾을 때까지 올라가면 두 경우 모두에서 안전하다.
+ *
+ * 실패해도 예외를 던지지 않는다 — 이 데이터는 참고용 신호일 뿐이라, 못 찾았다고
+ * 서버 전체가 죽으면 안 된다.
+ */
+function loadDataFile(): HousingPriceFile | null {
+  if (cached !== undefined) return cached;
+
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = join(dir, "data", "housing-price", "daejeon.json");
+    if (existsSync(candidate)) {
+      try {
+        cached = JSON.parse(readFileSync(candidate, "utf8")) as HousingPriceFile;
+        return cached;
+      } catch {
+        break; // 손상된 파일 — 아래에서 null 로 확정
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break; // 파일시스템 루트
+    dir = parent;
+  }
+  cached = null;
+  return cached;
+}
+
+/** 테스트에서 캐시를 비우기 위한 훅. */
+export function resetHousingPriceCache(): void {
+  cached = undefined;
 }
 
 export function isHousingPriceConfigured(): boolean {
-  const env = loadEnv();
-  return Boolean(env.MOLIT_HOUSING_PRICE_KEY ?? env.DATA_GO_KR_SERVICE_KEY);
+  return loadDataFile() !== null;
+}
+
+export interface HousingPriceInfo {
+  /** 공시가격(원). 단지 ㎡당 중위가 × 조회한 전용면적. */
+  officialPriceKrw: number;
+  baseYear: string | null;
+  /** 매칭된 단지의 원본 표기 이름. 조회가 맞았는지 사용자가 확인할 수 있게. */
+  matchedName: string | null;
+  /** 이 단지 집계에 쓰인 세대 수. 적을수록 대표성이 낮다. */
+  sampleSize: number;
 }
 
 export interface HousingPriceQuery {
   /** 법정동코드 10자리. */
   regionCode: string;
-  /** 단지명. 여러 건이 나올 때 고르는 데 쓴다. */
+  /** 단지명. 없으면 매칭할 수 없다. */
   buildingName?: string | null;
-}
-
-/** 이름 비교용 정규화. 공백·괄호를 지운다. */
-function normalize(name: string): string {
-  return name.replace(/\s|\(.*?\)/g, "").trim();
+  /** 전용면적(㎡). 단지 ㎡당 중위가에 곱해 이 세대의 공시가격을 추정한다. */
+  exclusiveAreaM2: number;
 }
 
 export async function fetchHousingPrice({
   regionCode,
   buildingName,
+  exclusiveAreaM2,
 }: HousingPriceQuery): Promise<PublicDataResult<HousingPriceInfo>> {
   const digits = regionCode.replace(/\D/g, "");
   if (digits.length < 10) {
     return fail("no_data", "공시가격 조회에는 법정동코드 10자리가 필요합니다.");
   }
-
-  const res = await callPublicData({
-    label: "공동주택가격",
-    path: ENDPOINT,
-    serviceKey: loadEnv().MOLIT_HOUSING_PRICE_KEY,
-    params: { bjdCode: digits, numOfRows: 100, pageNo: 1, _type: "xml" },
-  });
-  if (!res.ok) return res;
-
-  const items = pickItems(res.data);
-  if (items.length === 0) {
-    return fail("no_data", "해당 지역의 공동주택가격 정보를 찾지 못했습니다.");
+  if (!DAEJEON_SIGUNGU_CODES.has(digits.slice(0, 5))) {
+    return fail("no_data", "지금은 대전 지역 공동주택만 공시가격 데이터가 있습니다.");
+  }
+  if (!buildingName || buildingName.trim().length === 0) {
+    return fail("no_data", "단지명이 없어 공시가격을 찾을 수 없습니다.");
+  }
+  if (!Number.isFinite(exclusiveAreaM2) || exclusiveAreaM2 <= 0) {
+    return fail("no_data", "전용면적을 알 수 없어 공시가격을 계산할 수 없습니다.");
   }
 
-  // 단지명이 있으면 그것과 맞는 항목을 고른다.
-  const wanted = buildingName ? normalize(buildingName) : null;
-  const matched = wanted
-    ? items.find((it) => {
-        const name = pickField(it, ["kaptName", "complexName", "단지명"]);
-        return name ? normalize(name).includes(wanted) || wanted.includes(normalize(name)) : false;
-      })
-    : null;
+  const file = loadDataFile();
+  if (!file) {
+    return fail("no_key", "공동주택가격 데이터가 준비되지 않았습니다. (data/housing-price/daejeon.json 없음)");
+  }
 
-  const target = matched ?? items[0]!;
-  const price = toInt(pickField(target, ["pblntfPc", "공시가격", "price"]));
-
-  if (price === null || price <= 0) {
-    // 값을 못 읽었으면 0 으로 채우지 않는다. 모르는 것은 모르는 것이다.
-    return fail("unexpected_format", "공시가격 값을 응답에서 찾지 못했습니다. 필드명이 바뀌었을 수 있습니다.");
+  const group = findHousingPriceGroup(file.groups, digits, buildingName);
+  if (!group) {
+    return fail("no_data", `"${buildingName}" 단지의 공시가격을 찾지 못했습니다.`);
   }
 
   return ok({
-    officialPriceKrw: price,
-    baseYear: pickField(target, ["pblntfYear", "기준연도", "baseYear"]),
-    matchedName: pickField(target, ["kaptName", "complexName", "단지명"]),
+    officialPriceKrw: Math.round(group.medianPricePerM2Krw * exclusiveAreaM2),
+    baseYear: file.baseYear,
+    matchedName: group.buildingName,
+    sampleSize: group.sampleSize,
   });
 }
 
 export interface GuaranteeAssessment {
-  /** 공시가격 × 배율 = HUG 가 보는 주택가격. */
   recognizedPriceKrw: number;
-  /** (선순위 채권 + 보증금) / 인정 주택가격. */
   ratio: number;
-  /** 이 조건으로 보증보험 가입이 가능해 보이는지. */
   eligible: boolean;
-  /** 화면에 그대로 쓸 수 있는 설명. 기준을 밝히지 않으면 사용자가 납득하지 못한다. */
   explanation: string;
 }
 

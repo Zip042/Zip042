@@ -127,7 +127,10 @@ export function createApp() {
         legalDongLookup: isJusoConfigured(),
         /** 위반건축물 자동 조회 (주소만으로 가능). */
         buildingLedger: isBuildingLedgerConfigured(),
-        /** HUG 보증 가능 여부 판정 (공시가격 기준). */
+        /**
+         * HUG 보증 가능 여부 판정 (공시가격 기준). 외부 키가 아니라 커밋된 대전 공시가격
+         * 데이터(data/housing-price/daejeon.json)가 로드되는지를 본다.
+         */
         guaranteeAssessment: isHousingPriceConfigured(),
         /** 법인 임대인 실재·휴폐업 확인. */
         businessVerification: isBusinessRegistrationAvailable(),
