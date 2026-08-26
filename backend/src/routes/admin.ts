@@ -35,13 +35,18 @@ adminRoute.post(
   ),
   async (c) => {
     const env = loadEnv();
-    if (!env.KASI_SERVICE_KEY) {
-      throw badRequest("KASI_SERVICE_KEY 가 설정되지 않았습니다. (한국천문연구원 특일 정보 API 키)");
+    // KASI 도 공공데이터포털 API 라, 기관이 별도 키를 주지 않았으면 공통 키로 동작한다
+    // (building-ledger · business-registration 과 같은 폴백 규칙).
+    const serviceKey = env.KASI_SERVICE_KEY ?? env.DATA_GO_KR_SERVICE_KEY;
+    if (!serviceKey) {
+      throw badRequest(
+        "KASI_SERVICE_KEY (또는 공통 DATA_GO_KR_SERVICE_KEY) 가 설정되지 않았습니다. (한국천문연구원 특일 정보 API 키)",
+      );
     }
     const { years } = c.req.valid("json");
     const results: { year: number; inserted: number }[] = [];
     for (const year of years) {
-      const { inserted } = await syncHolidaysFromKasi(env.KASI_SERVICE_KEY, year);
+      const { inserted } = await syncHolidaysFromKasi(serviceKey, year);
       results.push({ year, inserted });
     }
     return c.json({ synced: results });

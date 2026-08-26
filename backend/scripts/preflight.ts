@@ -248,10 +248,12 @@ const checks: Check[] = [
     key: "kasi",
     label: "한국천문연구원 특일 정보 (공휴일)",
     async run(env) {
-      const serviceKey = env?.KASI_SERVICE_KEY ?? process.env.KASI_SERVICE_KEY;
+      // KASI 도 공공데이터포털 API 다 — 별도 키가 없으면 공통 키로 동작한다 (admin.ts 와 동일).
+      const serviceKey =
+        env?.KASI_SERVICE_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
       if (!serviceKey) {
         return skip(
-          "KASI_SERVICE_KEY 없음",
+          "KASI_SERVICE_KEY · 공통 DATA_GO_KR_SERVICE_KEY 모두 없음",
           "없으면 음력 공휴일(설·추석)을 모릅니다 → '잔금일이 설 연휴'를 놓칩니다.",
         );
       }
