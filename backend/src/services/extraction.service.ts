@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
 import type { ZodType } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadEnv } from "../env.js";
 import { mockExtraction } from "../mock/extraction.js";
 import { geminiParse } from "./llm/gemini.js";
@@ -155,6 +156,39 @@ interface CallArgs<T> {
   schema: ZodType<T>;
 }
 
+/**
+ * zod 스키마 → Anthropic structured outputs 의 `output_format`.
+ *
+ * ⚠️ SDK 의 `betaZodOutputFormat` 을 쓰면 **안 된다.** 그 헬퍼는 내부에서
+ * `z.toJSONSchema()` 를 부르는데 이건 **zod 4 API** 다. 이 저장소는 zod 3 을 쓰므로
+ * 호출 즉시 `z.toJSONSchema is not a function` 으로 죽는다 — 판독 경로 전체가 막힌다.
+ * (SDK 의 peer 범위가 `^3.25.0 || ^4.0.0` 이라 설치는 조용히 성공한다. 키가 없어
+ *  실제 호출을 못 해 본 동안 이 버그가 드러나지 않았다.)
+ *
+ * 그래서 JSON Schema 변환만 `zod-to-json-schema`(Gemini 경로에서 이미 쓰는 것)로 하고,
+ * Anthropic 이 요구하는 형태로 좁히는 일은 SDK 가 공개한 `transformJSONSchema` 에 맡긴다.
+ * 손으로 베끼면 API 가 조이는 규칙(additionalProperties:false, 지원 format 화이트리스트 등)이
+ * 어긋났을 때 조용히 실패한다.
+ *
+ * 반환 형태(`{ type, schema, parse }`)는 SDK 헬퍼와 동일하다 — `parse` 가 있어야
+ * `messages.parse()` 가 `parsed_output` 을 채운다.
+ */
+export function zodOutputFormat<T>(schema: ZodType<T>, schemaName: string) {
+  // `$refStrategy: "none"` 으로 인라인한다. `name` 을 주면 본문이 definitions 아래로
+  // 들어가므로 그것만 꺼낸다 ($schema 같은 껍데기를 함께 넘기지 않기 위해서다 —
+  // transformJSONSchema 는 모르는 키를 description 에 문자열로 덧붙인다).
+  const generated = zodToJsonSchema(schema, { name: schemaName, $refStrategy: "none" }) as {
+    definitions?: Record<string, unknown>;
+  };
+  const body = generated.definitions?.[schemaName] ?? generated;
+
+  return {
+    type: "json_schema" as const,
+    schema: transformJSONSchema(body as Parameters<typeof transformJSONSchema>[0]),
+    parse: (content: string) => schema.parse(JSON.parse(content)),
+  };
+}
+
 async function callModel<T>({ docType, fileBuffer, mimeType, schema }: CallArgs<T>): Promise<{
   parsed: T;
   model: string;
@@ -203,7 +237,7 @@ async function callModel<T>({ docType, fileBuffer, mimeType, schema }: CallArgs<
       // thinking 을 지정하지 않는다 → Claude Opus 5 에서는 adaptive thinking 이 기본으로 동작한다.
       // (budget_tokens 방식은 이 모델에서 거부된다.)
       output_config: { effort: env.ANTHROPIC_EFFORT },
-      output_format: betaZodOutputFormat(schema),
+      output_format: zodOutputFormat(schema, `${docType}_extraction`),
       system: [
         {
           type: "text",
