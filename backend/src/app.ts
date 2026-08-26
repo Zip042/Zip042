@@ -25,6 +25,11 @@ import { contractDraftRoute } from "./routes/contract-draft.js";
 import { checklistCatalogRoute, checklistRoute } from "./routes/checklist.js";
 import { glossaryRoute } from "./routes/glossary.js";
 import { isExtractionAvailable } from "./services/extraction.service.js";
+import { extractionProvider } from "./services/extraction.service.js";
+import { isJusoConfigured } from "./services/public-data/juso.js";
+import { isBuildingLedgerConfigured } from "./services/public-data/building-ledger.js";
+import { isHousingPriceConfigured } from "./services/public-data/housing-price.js";
+import { isBusinessStatusConfigured } from "./services/public-data/business-status.js";
 import { isMarketPriceAvailable } from "./services/market-price.service.js";
 import { loadHolidays } from "./services/holidays.service.js";
 import { isOwnerMatchingEnabled } from "./services/region.service.js";
@@ -118,6 +123,14 @@ export function createApp() {
         ownerMatching: isOwnerMatchingEnabled(),
         lunarHolidaysSynced: holidays.lunarHolidaysSynced,
         addressSearch: isAddressSearchLive(),
+        /** 법정동코드 조회 — 이게 없으면 실거래가 API 가 전부 동작하지 않는다. */
+        legalDongLookup: isJusoConfigured(),
+        /** 위반건축물 자동 조회 (주소만으로 가능). */
+        buildingLedger: isBuildingLedgerConfigured(),
+        /** HUG 보증 가능 여부 판정 (공시가격 기준). */
+        guaranteeAssessment: isHousingPriceConfigured(),
+        /** 법인 임대인 실재·휴폐업 확인. */
+        businessVerification: isBusinessStatusConfigured(),
         /**
          * 비동기 분석 사용 가능 여부.
          * 서버리스에서는 응답 후 백그라운드 실행이 보장되지 않으므로, 그 환경에서는
@@ -127,6 +140,11 @@ export function createApp() {
         notificationDelivery: false,
       },
       addressProvider: addressProviderName(),
+      /** 어떤 모델로 판독하는지. 키를 노출하지 않고 이름과 사유만 알린다. */
+      extractionProvider: (() => {
+        const p = extractionProvider();
+        return { active: p.active, reason: p.reason };
+      })(),
       mode: env.mode,
       /**
        * 목 데이터를 공개 배포한 상태. 프론트엔드는 이 값이 true 면

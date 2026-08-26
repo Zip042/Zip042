@@ -366,6 +366,118 @@ const checks: Check[] = [
   },
 
   {
+    key: "juso",
+    label: "도로명주소 개발자센터 (법정동코드)",
+    async run(env) {
+      const key = env?.JUSO_CONFM_KEY ?? process.env.JUSO_CONFM_KEY;
+      if (!key) {
+        return skip(
+          "JUSO_CONFM_KEY 없음",
+          "**가장 먼저 신청할 키입니다.** 법정동코드가 없으면 실거래가 API 가 전부 동작하지 않습니다. https://business.juso.go.kr",
+        );
+      }
+      const { searchJuso } = await import("../src/services/public-data/juso.js");
+      const res = await searchJuso("대전광역시 서구 둔산로", 1);
+      if (!res.ok) {
+        return fail(
+          res.reason,
+          res.failure === "unauthorized"
+            ? "신청 시 등록한 '사용 URL' 에 현재 환경(로컬이면 http://localhost)이 들어 있는지 확인하세요."
+            : undefined,
+        );
+      }
+      const top = res.data[0];
+      if (!top) return ok("키 유효 · 검색 결과 0건 (질의어 문제일 수 있음)");
+      if (!/^\d{10}$/.test(top.regionCode)) {
+        return fail(
+          `법정동코드가 10자리가 아닙니다: ${top.regionCode}`,
+          "이 값의 앞 5자리가 실거래가 API 의 LAWD_CD 입니다. 응답 필드(admCd)를 확인하세요.",
+        );
+      }
+      return ok(
+        `키 유효 · ${top.roadAddress} → 법정동코드 ${top.regionCode} (LAWD_CD ${top.regionCode.slice(0, 5)})`,
+      );
+    },
+  },
+
+  {
+    key: "building",
+    label: "건축HUB 건축물대장 (위반건축물)",
+    async run(env) {
+      const key =
+        env?.MOLIT_BUILDING_LEDGER_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
+      if (!key) {
+        return skip("키 없음", "주소만으로 위반건축물을 자동 확인하는 기능이 꺼집니다.");
+      }
+      const { fetchBuildingLedger } = await import("../src/services/public-data/building-ledger.js");
+      // 대전 서구 둔산동. 실제 번지는 키 검증용이므로 결과 없음도 정상이다.
+      const res = await fetchBuildingLedger({
+        regionCode: "3017010100",
+        jibunAddress: "둔산동 1000",
+      });
+      if (!res.ok) {
+        if (res.failure === "no_data") return ok("키 유효 · 해당 번지 자료 없음 (응답 형식은 정상)");
+        return fail(res.reason);
+      }
+      return ok(
+        `키 유효 · ${res.data.buildingName ?? "건물"} · 용도 ${res.data.mainUse ?? "?"} · 위반 ${
+          res.data.isIllegal === null ? "확인불가" : res.data.isIllegal ? "있음" : "없음"
+        }`,
+      );
+    },
+  },
+
+  {
+    key: "housing-price",
+    label: "공동주택가격 (HUG 보증 판정)",
+    async run(env) {
+      const key =
+        env?.MOLIT_HOUSING_PRICE_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
+      if (!key) return skip("키 없음", "보증보험 가입 가능 여부를 판정하지 못합니다.");
+
+      const { fetchHousingPrice } = await import("../src/services/public-data/housing-price.js");
+      const res = await fetchHousingPrice({ regionCode: "3017010100" });
+      if (!res.ok) {
+        if (res.failure === "no_data") return ok("키 유효 · 해당 지역 자료 없음 (응답 형식은 정상)");
+        return fail(res.reason, res.failure === "unexpected_format" ? "응답 필드명이 바뀌었을 수 있습니다." : undefined);
+      }
+      return ok(
+        `키 유효 · ${res.data.matchedName ?? "단지"} 공시가 ${Math.round(res.data.officialPriceKrw / 10_000).toLocaleString("ko-KR")}만원`,
+      );
+    },
+  },
+
+  {
+    key: "nts",
+    label: "국세청 사업자등록 상태조회",
+    async run(env) {
+      const key = env?.NTS_BIZ_SERVICE_KEY ?? env?.DATA_GO_KR_SERVICE_KEY ?? process.env.DATA_GO_KR_SERVICE_KEY;
+      if (!key) return skip("키 없음", "법인 임대인의 휴폐업 여부를 확인하지 못합니다.");
+
+      const { fetchBusinessStatus } = await import("../src/services/public-data/business-status.js");
+      // 국세청 공식 예시 번호. 실재 여부와 무관하게 응답 형식을 확인하는 용도다.
+      const res = await fetchBusinessStatus("0000000000");
+      if (!res.ok) {
+        if (res.failure === "no_data") return ok("키 유효 · 응답 형식 정상");
+        return fail(res.reason);
+      }
+      return ok(`키 유효 · 응답 형식 정상 (등록여부 ${res.data.registered ? "있음" : "없음"})`);
+    },
+  },
+
+  {
+    key: "llm",
+    label: "판독 모델 선택 (Anthropic / Gemini)",
+    async run(env) {
+      if (!env) return skip("env 검증 실패로 확인 불가");
+      const { resolveLlmProvider } = await import("../src/services/llm/provider.js");
+      const p = resolveLlmProvider();
+      if (p.active === null) return skip(p.reason, "판독 없이는 위험 판정을 낼 수 없습니다.");
+      return ok(`${p.active} 사용 — ${p.reason}`);
+    },
+  },
+
+  {
     key: "secrets",
     label: "서버 자체 시크릿 (외부 호출 없음)",
     async run(env) {

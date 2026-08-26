@@ -20,6 +20,7 @@ import {
   type ValuationResult,
 } from "../domain/valuation.js";
 import { buildVerdict, burdenGauge, verdictBadge } from "../domain/verdict.js";
+import { buildJudgmentResult, type JudgmentResult } from "../domain/judgment.js";
 import { getCase, setCaseStatus, type CaseRow } from "./case.service.js";
 import { ensureExtractions, type CaseExtractions } from "./document.service.js";
 import { loadHolidays } from "./holidays.service.js";
@@ -212,6 +213,8 @@ export interface AnalysisResultPayload {
   specialTerms: RecommendedTerm[];
   findings: Finding[];
   /** 판정의 한계를 사용자에게 알리기 위한 메타 정보 */
+  /** 화면용 판정 계약 (B단계 가이드). 네 등급 + 근거 + 원문인용 + 다음행동. */
+  judgment: JudgmentResult;
   caveats: string[];
   generatedAt: string;
 }
@@ -383,6 +386,21 @@ export async function runAnalysis(
       },
       specialTerms,
       findings,
+      /**
+       * B단계 구현 가이드가 정한 화면용 판정 계약.
+       *
+       * `verdict` 는 점수·가중치를 다루는 내부 구조라 화면이 알아야 할 것이 많다.
+       * `judgment` 는 그것을 네 등급(STOP·WARN·OK·UNKNOWN)과 근거·원문인용·다음행동·
+       * 용어링크로 좁힌다. 새로 판정하지 않고 형태만 바꾼다.
+       */
+      judgment: buildJudgmentResult({
+        verdict,
+        findings,
+        seniorClaimsKrw: valuation.seniorClaimsKrw,
+        depositKrw: row.deposit_krw,
+        // 시세를 못 구했으면 **null** 을 넘긴다. 0 을 넘기면 "0% · 안전"이 된다.
+        marketPriceKrw: marketPrice.source === "unavailable" ? null : marketPrice.estimatedKrw,
+      }),
       caveats,
       generatedAt: new Date().toISOString(),
     };

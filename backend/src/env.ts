@@ -72,6 +72,47 @@ const EnvSchema = z
     KASI_SERVICE_KEY: z.string().optional(),
 
     /**
+     * ── 판독 모델 선택 ──────────────────────────────────────────────────
+     *
+     * 팀이 확정한 API 목록에는 Gemini 가, A단계 구현 가이드에는 Claude 가 적혀 있다.
+     * 둘 중 하나를 코드에 박지 않고 **키가 있는 쪽을 쓴다**. 둘 다 있으면 이 값으로 고른다.
+     *
+     * 어느 쪽을 쓰든 판독 결과는 같은 스키마로 정규화되므로, 규칙 엔진은 차이를 모른다.
+     */
+    LLM_PROVIDER: z.enum(["auto", "anthropic", "gemini"]).default("auto"),
+
+    /** Google Gemini. https://aistudio.google.com/apikey */
+    GEMINI_API_KEY: z.string().min(10).optional(),
+    GEMINI_MODEL: z.string().default("gemini-2.5-pro"),
+
+    /**
+     * ── 공공데이터포털 개별 키 ──────────────────────────────────────────
+     *
+     * 포털은 API 마다 활용신청을 따로 받는다. 대개 계정 공통 키 하나로 전부 되지만,
+     * 기관에 따라 별도 키를 주는 경우가 있어 개별 지정을 열어 둔다.
+     * 비우면 공통 `DATA_GO_KR_SERVICE_KEY` 를 쓴다.
+     */
+    /** 국토교통부 실거래가 (매매·전월세 6종). */
+    MOLIT_RTMS_SERVICE_KEY: z.string().optional(),
+    /** 국토교통부 건축HUB 건축물대장 (15134735) — 위반건축물·용도 확인. */
+    MOLIT_BUILDING_LEDGER_KEY: z.string().optional(),
+    /** 국토교통부 공동주택가격정보 (15124003) — HUG 보증 가능 여부(공시가 × 126%). */
+    MOLIT_HOUSING_PRICE_KEY: z.string().optional(),
+    /** 한국부동산원 부동산통계 (15134761) — 전세가율 통계 보정. */
+    REB_STATS_SERVICE_KEY: z.string().optional(),
+    /** 국세청 사업자등록 진위확인 (15081808) — 법인 임대인 실재·휴폐업 확인. */
+    NTS_BIZ_SERVICE_KEY: z.string().optional(),
+
+    /**
+     * 행정안전부 도로명주소 개발자센터.
+     *
+     * **가장 먼저 신청해야 하는 키다.** 이게 없으면 법정동코드(LAWD_CD)를 얻지 못하고,
+     * 실거래가 API 는 전부 그 코드를 필수로 요구하므로 시세 조회가 아예 돌지 않는다.
+     * https://business.juso.go.kr
+     */
+    JUSO_CONFM_KEY: z.string().optional(),
+
+    /**
      * 주소 검색 · 지오코딩 제공자 키. 둘 중 하나만 있으면 되고, 없으면 목 데이터로 폴백한다.
      *
      * 여기에 선언해 두는 이유: 이 두 값만 `process.env` 에서 직접 읽으면 **오타를 낸 순간

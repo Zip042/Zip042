@@ -3,6 +3,8 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { ZodType } from "zod";
 import { loadEnv } from "../env.js";
 import { mockExtraction } from "../mock/extraction.js";
+import { geminiParse } from "./llm/gemini.js";
+import { resolveLlmProvider } from "./llm/provider.js";
 import { badRequest, internal, upstreamFailed } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
 import {
@@ -50,9 +52,14 @@ function anthropic(): Anthropic {
 }
 
 export function isExtractionAvailable(): boolean {
-  // 목 모드에서는 API 키 없이도 픅스처로 판독이 "가능"하다.
+  // 목 모드에서는 API 키 없이도 픽스처로 판독이 "가능"하다.
   if (loadEnv().mode === "mock") return true;
-  return Boolean(loadEnv().ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY);
+  return resolveLlmProvider().active !== null;
+}
+
+/** 지금 어떤 모델로 판독하는지. `/v1/meta` 와 preflight 가 그대로 보여준다. */
+export function extractionProvider(): ReturnType<typeof resolveLlmProvider> {
+  return resolveLlmProvider();
 }
 
 /** 문서 판독 호출에 함께 넘기는 메타 정보. 목 모드에서 시나리오를 고르는 데 쓴다. */
@@ -154,6 +161,24 @@ async function callModel<T>({ docType, fileBuffer, mimeType, schema }: CallArgs<
   usage: { inputTokens: number; outputTokens: number } | null;
 }> {
   const env = loadEnv();
+
+  // 어느 모델을 쓸지는 키가 정한다. 둘 다 같은 스키마로 정규화되므로
+  // 이 함수 밖에서는 차이를 알 필요가 없다.
+  const provider = resolveLlmProvider();
+  if (provider.active === null) {
+    throw internal("문서 분석 모델이 설정되지 않았습니다. 서버 설정을 확인해 주세요.");
+  }
+  if (provider.active === "gemini") {
+    return geminiParse({
+      systemPrompt: BASE_SYSTEM_PROMPT,
+      userPrompt: DOC_PROMPTS[docType],
+      fileBuffer,
+      mimeType,
+      schema,
+      schemaName: `${docType}_extraction`,
+    });
+  }
+
   const base64 = fileBuffer.toString("base64");
 
   const contentBlock =

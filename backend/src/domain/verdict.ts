@@ -139,8 +139,11 @@ export function buildVerdict(input: VerdictInput): VerdictResult {
   // 상단 요약에는 실제 위험만 올린다. 확인 못 한 항목은 informationGaps 로 따로 나간다.
   const topFindings = sorted.filter((f) => f.kind !== "info_gap").slice(0, 8);
 
+  // 카테고리 등급도 **실제 위험만으로** 낸다. info_gap 을 섞으면 "사진이 흐림"만으로
+  // 그 카테고리가 danger 로 보인다 — 설계 원칙 3 의 축 혼동이 여기서 재발한다.
+  // 확인 못 한 항목은 informationGaps 로 따로 나간다.
   const categoryLevels: Record<string, RiskLevel> = {};
-  for (const f of findings) {
+  for (const f of riskFindings) {
     categoryLevels[f.category] = maxRisk(categoryLevels[f.category] ?? "safe", f.severity);
   }
 
