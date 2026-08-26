@@ -3,3 +3,4 @@ dist
 .vercel
 portfolio
 zip042-front
+data/housing-price/*.zip
