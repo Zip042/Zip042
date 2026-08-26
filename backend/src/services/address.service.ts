@@ -80,24 +80,122 @@ const mockProvider: AddressProvider = {
 // 실제 제공자 (키 발급 후 채운다)
 // ---------------------------------------------------------------------------
 
+const KAKAO_ADDRESS_URL = "https://dapi.kakao.com/v2/local/search/address.json";
+
+/** 카카오 주소 검색 응답에서 실제로 쓰는 필드만 추린 형태. */
+interface KakaoAddressDocument {
+  address_name?: string;
+  address_type?: string;
+  /** 지번(법정동) 정보. **법정동코드 `b_code` 가 여기에만 있다.** */
+  address?: {
+    address_name?: string;
+    b_code?: string;
+    region_2depth_name?: string;
+    region_3depth_name?: string;
+  } | null;
+  road_address?: {
+    address_name?: string;
+    building_name?: string;
+    region_2depth_name?: string;
+    region_3depth_name?: string;
+    zone_no?: string;
+  } | null;
+  x?: string;
+  y?: string;
+}
+
+/** 빈 문자열을 null 로. 카카오는 없는 값을 `""` 로 준다. */
+function orNull(v: string | undefined): string | null {
+  const t = v?.trim();
+  return t ? t : null;
+}
+
 /**
  * 카카오 로컬 API 제공자.
  *
- * ⚠️ 아직 구현하지 않았다. 키가 생기면 아래를 채운다.
- *   · 엔드포인트: https://dapi.kakao.com/v2/local/search/address.json?query=...
- *   · 헤더: Authorization: KakaoAK {REST_API_KEY}
- *   · 응답의 `road_address.zone_no`(우편번호) · `x`(경도) · `y`(위도) 를 매핑한다.
+ * 주의 1 — **법정동코드는 `b_code`** 다(행정동코드 `h_code` 와 다르다). 실거래가 API 는
+ *   법정동코드 기준이라 `h_code` 를 쓰면 시세 조회가 조용히 빈 결과를 돌려준다.
  *
- * 주의: 카카오 응답에는 **법정동코드가 `b_code` 로** 들어 있다(행정동코드 `h_code` 와 다름).
- *       실거래가 API 는 법정동코드 기준이므로 `b_code` 를 써야 한다. 이걸 혼동하면
- *       시세 조회가 조용히 빈 결과를 돌려준다.
+ * 주의 2 — **번지 없는 도로명만 검색하면 `address` 가 null 로 온다**(`address_type: "ROAD"`).
+ *   그런 항목에는 법정동코드가 아예 없다. 예: "둔산로" → 10건 모두 b_code 없음,
+ *   "둔산로 89" → b_code 3017011200. 코드를 지어내면 엉뚱한 동네 시세를 붙이게 되므로
+ *   (설계 원칙 2) 그런 항목은 **결과에서 제외**한다. 사용자는 번지까지 입력하면 찾는다.
  */
 const kakaoProvider: AddressProvider = {
   name: "kakao",
-  async search() {
-    throw upstreamFailed(
-      "카카오 주소 검색이 아직 연동되지 않았습니다. KAKAO_REST_API_KEY 설정 후 구현이 필요합니다.",
-    );
+  async search(query, limit) {
+    const url = new URL(KAKAO_ADDRESS_URL);
+    url.searchParams.set("query", query);
+    // 법정동코드가 없는 항목을 걸러내므로 여유 있게 받아 온다 (카카오 상한 30).
+    url.searchParams.set("size", String(Math.min(30, Math.max(limit * 3, limit))));
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Authorization: `KakaoAK ${loadEnv().KAKAO_REST_API_KEY ?? ""}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (err) {
+      throw upstreamFailed(
+        `카카오 주소 검색에 실패했습니다: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 200);
+      if (res.status === 401) {
+        throw upstreamFailed("카카오 인증에 실패했습니다. REST API 키인지 확인하세요.");
+      }
+      throw upstreamFailed(`카카오 주소 검색 오류 (HTTP ${res.status}) ${body}`);
+    }
+
+    const body = (await res.json()) as { documents?: KakaoAddressDocument[] };
+    const documents = body.documents ?? [];
+
+    const results: AddressResult[] = [];
+    let droppedNoRegionCode = 0;
+
+    for (const doc of documents) {
+      const regionCode = doc.address?.b_code?.trim();
+      const lat = Number(doc.y);
+      const lng = Number(doc.x);
+
+      // 법정동코드나 좌표가 없으면 이 서비스에서 쓸 수 없는 결과다. 채워 넣지 않고 버린다.
+      if (!regionCode || regionCode.length !== 10) {
+        droppedNoRegionCode += 1;
+        continue;
+      }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        droppedNoRegionCode += 1;
+        continue;
+      }
+
+      const road = doc.road_address;
+      results.push({
+        roadAddress: orNull(road?.address_name) ?? doc.address_name ?? "",
+        jibunAddress: orNull(doc.address?.address_name),
+        buildingName: orNull(road?.building_name),
+        sigungu: orNull(doc.address?.region_2depth_name) ?? orNull(road?.region_2depth_name) ?? "",
+        legalDong: orNull(doc.address?.region_3depth_name),
+        regionCode,
+        postalCode: orNull(road?.zone_no),
+        lat,
+        lng,
+        source: "kakao",
+      });
+      if (results.length >= limit) break;
+    }
+
+    // 전부 걸러졌다면 "결과 없음"과 구별되어야 한다 — 번지를 붙이면 찾아지기 때문이다.
+    if (results.length === 0 && droppedNoRegionCode > 0) {
+      log.info("카카오 검색 결과에 법정동코드가 없어 전부 제외했습니다", {
+        query,
+        dropped: droppedNoRegionCode,
+        hint: "도로명만 입력한 경우입니다. 건물번호(번지)까지 입력하면 법정동코드가 옵니다.",
+      });
+    }
+
+    return results;
   },
 };
 

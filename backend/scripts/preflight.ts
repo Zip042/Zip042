@@ -312,7 +312,9 @@ const checks: Check[] = [
 
       if (kakao) {
         const url = new URL("https://dapi.kakao.com/v2/local/search/address.json");
-        url.searchParams.set("query", "대전광역시 서구 둔산로");
+        // ⚠️ 건물번호까지 넣어야 한다. 도로명만("둔산로") 검색하면 address_type 이 "ROAD" 라
+        //    `address` 가 null 로 오고 b_code 가 아예 없다 — 키 문제로 오해하기 쉽다.
+        url.searchParams.set("query", "대전광역시 서구 둔산로 89");
         url.searchParams.set("size", "1");
         try {
           const res = await fetch(url, {
