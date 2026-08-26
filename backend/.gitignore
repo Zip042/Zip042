@@ -36,3 +36,8 @@ Thumbs.db
 # scripts/import-housing-price.ts 가 이걸 읽어 daejeon.json 으로 바꾼다.
 # 커밋하는 건 daejeon.json 뿐이다 — 원본은 반기마다 사람이 다시 받는다.
 data/housing-price/*.zip
+
+# supabase CLI 산출물. `supabase link` 가 여기에 `.env*` 를 덧붙이는데, 위 12~14행이
+# 이미 .env / .env.* 를 막고 .env.example 만 예외로 열어 두므로 중복이다.
+# 오히려 `.env*` 는 그 예외보다 뒤에 와서 .env.example 까지 가릴 수 있어 지웠다.
+supabase/.branches/
