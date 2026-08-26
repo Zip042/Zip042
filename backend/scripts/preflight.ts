@@ -183,12 +183,18 @@ const checks: Check[] = [
       const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
       const dealYmd = `${lastMonth.getUTCFullYear()}${String(lastMonth.getUTCMonth() + 1).padStart(2, "0")}`;
 
-      const url = new URL("/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade", base);
-      url.searchParams.set("serviceKey", serviceKey);
-      url.searchParams.set("LAWD_CD", "30170");
-      url.searchParams.set("DEAL_YMD", dealYmd);
-      url.searchParams.set("numOfRows", "5");
-      url.searchParams.set("pageNo", "1");
+      // ⚠️ serviceKey 는 URLSearchParams 에 넣지 않는다. "Encoding" 키는 이미 URL
+      // 인코딩된 문자열이라 searchParams.set() 을 거치면 이중 인코딩되어 인증이
+      // 조용히 실패한다(본문 없는 HTTP 403 — 이 검사가 잡으려는 바로 그 함정을
+      // 검사 스크립트 자신이 밟고 있었다). market-price.service.ts 와 같은 방식으로 맞춘다.
+      const rest = new URLSearchParams({
+        LAWD_CD: "30170",
+        DEAL_YMD: dealYmd,
+        numOfRows: "5",
+        pageNo: "1",
+      });
+      const endpoint = new URL("/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade", base);
+      const url = `${endpoint.origin}${endpoint.pathname}?serviceKey=${serviceKey}&${rest.toString()}`;
 
       try {
         const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -201,7 +207,7 @@ const checks: Check[] = [
         // ⚠️ 여기가 이 검사의 핵심 — 키 오류가 200 으로 온다.
         const code = tagValue(body, ["resultCode", "returnReasonCode"]);
         const msg = tagValue(body, ["resultMsg", "returnAuthMsg", "errMsg"]);
-        if (code && !["00", "0000"].includes(code)) {
+        if (code && !["00", "000", "0000"].includes(code)) {
           const hint =
             code === "30"
               ? "등록되지 않은 키입니다. 포털에서 활용신청 승인 여부를 확인하세요(승인까지 시간이 걸립니다)."
@@ -252,12 +258,14 @@ const checks: Check[] = [
 
       // 설 연휴가 있는 달로 조회한다. 음력 공휴일이 실제로 오는지 확인하는 것이 목적이다.
       const year = new Date().getUTCFullYear();
-      const url = new URL("https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo");
-      url.searchParams.set("serviceKey", serviceKey);
-      url.searchParams.set("solYear", String(year));
-      url.searchParams.set("solMonth", "02");
-      url.searchParams.set("numOfRows", "50");
-      url.searchParams.set("_type", "json");
+      // ⚠️ serviceKey 는 URLSearchParams 에 넣지 않는다 — 이중 인코딩 함정 (molit 검사와 동일).
+      const rest = new URLSearchParams({
+        solYear: String(year),
+        solMonth: "02",
+        numOfRows: "50",
+        _type: "json",
+      });
+      const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?serviceKey=${serviceKey}&${rest.toString()}`;
 
       try {
         const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -266,7 +274,7 @@ const checks: Check[] = [
 
         const code = tagValue(body, ["resultCode", "returnReasonCode"]);
         const msg = tagValue(body, ["resultMsg", "returnAuthMsg", "errMsg"]);
-        if (code && !["00", "0000"].includes(code)) {
+        if (code && !["00", "000", "0000"].includes(code)) {
           return fail(
             `응답 코드 ${code} — ${msg ?? "사유 미상"}`,
             code === "30"

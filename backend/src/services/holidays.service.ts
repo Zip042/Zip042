@@ -123,12 +123,16 @@ export async function syncHolidaysFromKasi(
   const names = new Map<DateOnly, string>();
 
   for (let month = 1; month <= 12; month += 1) {
-    const url = new URL(KASI_URL);
-    url.searchParams.set("serviceKey", serviceKey);
-    url.searchParams.set("solYear", String(year));
-    url.searchParams.set("solMonth", String(month).padStart(2, "0"));
-    url.searchParams.set("numOfRows", "50");
-    url.searchParams.set("_type", "json");
+    // ⚠️ serviceKey 는 URLSearchParams 에 넣지 않는다. "Encoding" 키는 이미 URL
+    // 인코딩된 문자열이라 searchParams.set() 을 거치면 이중 인코딩되어 인증이
+    // 조용히 실패한다(market-price.service.ts 와 같은 함정).
+    const rest = new URLSearchParams({
+      solYear: String(year),
+      solMonth: String(month).padStart(2, "0"),
+      numOfRows: "50",
+      _type: "json",
+    });
+    const url = `${KASI_URL}?serviceKey=${serviceKey}&${rest.toString()}`;
 
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`특일 정보 API 오류 (${res.status})`);

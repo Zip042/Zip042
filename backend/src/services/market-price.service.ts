@@ -172,12 +172,18 @@ async function fetchMonth(
   dealYmd: string,
 ): Promise<DealRecord[]> {
   const env = loadEnv();
-  const url = new URL(endpoint, env.DATA_GO_KR_BASE_URL);
-  url.searchParams.set("serviceKey", serviceKey);
-  url.searchParams.set("LAWD_CD", lawdCd);
-  url.searchParams.set("DEAL_YMD", dealYmd);
-  url.searchParams.set("numOfRows", "1000");
-  url.searchParams.set("pageNo", "1");
+  // ⚠️ serviceKey 는 URLSearchParams 에 넣지 않는다. 공공데이터포털의 "Encoding" 키는
+  // 이미 URL 인코딩된 문자열이라, searchParams.set() 을 거치면 `%2B` 가 `%252B` 로
+  // 이중 인코딩되어 인증이 조용히 실패한다(HTTP 403, 본문 없이). 그래서 쿼리 문자열에
+  // serviceKey 만 직접 붙이고, 나머지 파라미터만 URLSearchParams 로 구성한다.
+  const rest = new URLSearchParams({
+    LAWD_CD: lawdCd,
+    DEAL_YMD: dealYmd,
+    numOfRows: "1000",
+    pageNo: "1",
+  });
+  const base = new URL(endpoint, env.DATA_GO_KR_BASE_URL);
+  const url = `${base.origin}${base.pathname}?serviceKey=${serviceKey}&${rest.toString()}`;
 
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`실거래가 API 오류 (${res.status})`);
@@ -185,7 +191,7 @@ async function fetchMonth(
 
   // 서비스 키 오류 등은 200 + 에러 XML 로 온다.
   const resultCode = extractTag(xml, ["resultCode", "returnReasonCode"]);
-  if (resultCode && !["00", "0000"].includes(resultCode)) {
+  if (resultCode && !["00", "000", "0000"].includes(resultCode)) {
     const msg = extractTag(xml, ["resultMsg", "returnAuthMsg"]) ?? resultCode;
     throw new Error(`실거래가 API 응답 오류: ${msg}`);
   }

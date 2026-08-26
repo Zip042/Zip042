@@ -17,6 +17,15 @@ import { callPublicData, fail, ok, pickField, pickItems, toInt, type PublicDataR
  *    공동주택 126% 는 2026년 8월 기준으로 팀이 정리한 값이다. HUG 는 이 배율과
  *    담보인정비율(전세가율 상한)을 **수시로 바꾼다.** 아래 상수를 그대로 믿지 말고
  *    HUG 공지로 확인한 뒤 갱신하세요. 틀리면 "가입 가능"이라고 잘못 안내하게 된다.
+ *
+ * ⚠️ **아래 ENDPOINT 는 미검증 — 실제 키로 호출하면 `NO_OPENAPI_SERVICE_ERROR`(코드 12) 가
+ *    난다.** 포털 페이지의 "API 유형"이 `LINK` 로 표시되는데, 이는 data.go.kr 안에 스펙이
+ *    없고 국가공간정보센터(관리부서)가 별도로 문서를 낸다는 뜻이다. 이름 그대로
+ *    "WMS/WFS/속성정보" 이므로 RTMS 류의 단순 REST 가 아니라 OGC 지도 서비스(WMS/WFS)
+ *    + 별도 속성 조회 API 조합일 가능성이 높다. 포털 "상세설명" 문서(로그인 후 열람)나
+ *    관리부서(국가공간정보센터, 02-1661-0115)에 문의해 실제 오퍼레이션을 확인하고 나서
+ *    이 상수를 고칠 것. 그때까지 이 기능(HUG 참고 판정)은 조용히 `unexpected_format` 으로
+ *    빠진다 — 판정 전체를 막지는 않는다(HUG 판정은 참고용 신호일 뿐이다).
  */
 
 const ENDPOINT = "/1613000/AptListService2/getLegaldongAptList";

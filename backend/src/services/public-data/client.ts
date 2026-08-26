@@ -130,6 +130,13 @@ function classify(code: string, message: string | null): PublicDataError {
       return fail("quota_exceeded", "일일 트래픽 한도를 초과했습니다. 키 자체는 유효합니다.", code);
     case "03":
       return fail("no_data", "해당 조건의 데이터가 없습니다.", code);
+    case "12":
+      return fail(
+        "unexpected_format",
+        "이 오퍼레이션 경로 자체가 존재하지 않거나 폐기됐습니다(NO_OPENAPI_SERVICE_ERROR). " +
+          "포털에서 이 API의 '상세설명' 문서를 열어 실제 오퍼레이션명·경로를 확인하세요.",
+        code,
+      );
     default:
       return fail("unexpected_format", message ?? `포털 응답 오류 (코드 ${code})`, code);
   }
@@ -199,17 +206,25 @@ export async function callPublicData(
   if (res.status === 401 || res.status === 403) {
     return fail("unauthorized", "인증에 실패했습니다. 서비스 키를 확인하세요.", String(res.status));
   }
-  if (!res.ok) {
-    return fail("unavailable", `외부 서버 오류입니다. (HTTP ${res.status})`, String(res.status));
-  }
 
-  // ⚠️ 여기가 핵심 — 200 인데 본문이 오류인 경우.
+  /**
+   * ⚠️ 여기가 핵심 — 오류 본문을 **HTTP 상태와 무관하게** 먼저 확인한다.
+   *
+   * 이 포털은 키 오류를 200 으로도 주지만(가장 흔한 함정), 어떤 오퍼레이션은
+   * 존재하지 않는 오퍼레이션명·폐기된 API 를 부르면 **400 + 이 구조의 XML** 로도 준다
+   * (`NO_OPENAPI_SERVICE_ERROR` 등). 상태가 400이라고 본문을 안 보면, 진짜 원인
+   * ("이 오퍼레이션 자체가 없다")을 버리고 "외부 서버 오류"라는 뭉뚱그린 메시지만 남는다.
+   */
   const code = pickField(body, ["resultCode", "returnReasonCode", "errMsg"]);
   const message = pickField(body, ["resultMsg", "returnAuthMsg", "errMsg"]);
-  if (code && !["00", "0000", "0"].includes(code)) {
+  if (code && !["00", "000", "0000", "0"].includes(code)) {
     const classified = classify(code, message);
     log.warn("공공데이터 응답 오류", { label: req.label, code, message });
     return classified;
+  }
+
+  if (!res.ok) {
+    return fail("unavailable", `외부 서버 오류입니다. (HTTP ${res.status})`, String(res.status));
   }
 
   // HTML 이 왔다면 대개 포털 점검 페이지다.
