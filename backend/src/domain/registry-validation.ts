@@ -85,9 +85,20 @@ export function validateRegistryExtraction({
   }
 
   // ── 갑구가 통째로 비어 있다 ────────────────────────────────────────────
-  // 소유권 기재가 없는 등기부는 존재하지 않는다. 파싱 실패로 본다.
+  // 소유권 기재가 없는 등기부는 존재하지 않는다. 원래는 파싱 실패로 봤다.
+  //
+  // ⚠️ 실제 판독으로 확인된 함정: 같은 문서를 다시 넣어도 모델이 매번 같은 구조로
+  // 뽑지 않는다. ownerNames(최상위 필드)는 채웠는데 rights 의 gap 항목은 하나도
+  // 안 만드는 경우가 실제로 나왔다 — "소유자는 읽었지만 그걸 권리 목록으로
+  // 나열하지 않은" 상태다. rights 배열만 보면 이걸 "못 읽음"으로 오판해 STOP 을
+  // 낸다. 같은 문서를 두 번 올렸을 때 판정이 갈리는 원인이었다.
+  //
+  // 그래서 ownerNames 가 채워져 있으면 "소유권 자체는 읽었다"고 인정한다.
+  // rights 목록이 비어도 이 경우엔 gap finding 을 올리지 않는다 — 소유자 정보는
+  // 이미 있으므로 정말로 못 읽은 것은 아니다.
   const gapSection = registry.rights.filter((r) => r.section === "gap");
-  if (gapSection.length === 0) {
+  const ownerReadable = registry.ownerNames.length > 0;
+  if (gapSection.length === 0 && !ownerReadable) {
     findings.push(
       gap(
         "RIGHTS_GAP_SECTION_EMPTY",
