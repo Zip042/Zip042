@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { UploadCloud, FileCheck2, Info, ArrowRight, X, ExternalLink, Loader2 } from "lucide-react";
+import {
+  UploadCloud,
+  FileCheck2,
+  Info,
+  ArrowRight,
+  X,
+  ExternalLink,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { Button, Card, PageHead, Steps } from "@/components/ui";
+import { WhatWeCheck } from "@/components/WhatWeCheck";
+import { REGISTRY_CHECK, UPLOAD_NOTICE } from "@/data/document-checks";
 import { useFlow } from "@/state/flow";
 import { createCase, uploadDocument } from "@/lib/zip042";
 import { ApiError } from "@/lib/api";
@@ -99,25 +110,42 @@ export default function Analyze() {
           <span className="mt-1.5 text-[13px] text-ink-300">PDF · JPG · PNG · 최대 10MB</span>
         </label>
       ) : (
-        <Card className="flex items-center gap-3 p-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50">
-            <FileCheck2 className="size-5 text-brand-600" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold">{file.name}</p>
-            <p className="text-[12.5px] text-ink-300">
-              {(file.size / 1024 / 1024).toFixed(1)}MB · 올릴 준비가 되었습니다
-            </p>
+        <Card>
+          <div className="flex items-center gap-3 p-4">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50">
+              <FileCheck2 className="size-5 text-brand-600" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-semibold">{file.name}</p>
+              <p className="text-[12.5px] text-ink-300">
+                {(file.size / 1024 / 1024).toFixed(1)}MB · 올릴 준비가 되었습니다
+              </p>
+            </div>
+            <button
+              onClick={() => setFile(null)}
+              className="grid size-8 place-items-center rounded-lg text-ink-300 hover:bg-surface hover:text-ink-700"
+              aria-label="파일 제거"
+            >
+              <X className="size-4" />
+            </button>
           </div>
-          <button
-            onClick={() => setFile(null)}
-            className="grid size-8 place-items-center rounded-lg text-ink-300 hover:bg-surface hover:text-ink-700"
-            aria-label="파일 제거"
-          >
-            <X className="size-4" />
-          </button>
         </Card>
       )}
+
+      {/* 파일 선택 여부와 무관하게 늘 보여야 합니다 — 무엇을 확인하는지 알아야
+          '말소사항 포함'으로 다시 뗄지를 판단할 수 있습니다. */}
+      <Card className="mt-3">
+        <WhatWeCheck doc={REGISTRY_CHECK} bare />
+      </Card>
+
+      {/*
+        올리기 직전이 이 문구가 필요한 순간입니다. 하단 고지에도 있지만, 파일을
+        건네는 그 자리에서 보이지 않으면 읽히지 않습니다.
+      */}
+      <p className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] text-ink-500">
+        <ShieldCheck className="size-3.5 shrink-0 text-brand-500" />
+        서류는 분석 후 즉시 삭제 처리됩니다.
+      </p>
 
       {/*
         주소와 보증금은 서류에서 읽을 수 없거나(보증금은 등기부에 없습니다),
@@ -202,9 +230,12 @@ export default function Analyze() {
         </Button>
       </div>
 
-      <p className="mt-5 text-center text-[12.5px] leading-relaxed text-ink-300">
-        올리신 서류는 판정에만 사용하며, 개인정보는 화면에 표시되지 않습니다.
-      </p>
+      <div className="mt-5 space-y-1 text-center text-[12.5px] leading-relaxed text-ink-300">
+        {UPLOAD_NOTICE.map((t) => (
+          <p key={t}>{t}</p>
+        ))}
+        <p>올리신 서류는 판정에만 사용하며, 개인정보는 화면에 표시되지 않습니다.</p>
+      </div>
     </div>
   );
 }

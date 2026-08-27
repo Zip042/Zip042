@@ -22,7 +22,7 @@ import {
 import { buildVerdict, burdenGauge, verdictBadge } from "../domain/verdict.js";
 import { buildJudgmentResult, type JudgmentResult } from "../domain/judgment.js";
 import { getCase, setCaseStatus, type CaseRow } from "./case.service.js";
-import { ensureExtractions, type CaseExtractions } from "./document.service.js";
+import { ensureExtractions, purgeCaseFiles, type CaseExtractions } from "./document.service.js";
 import { loadHolidays } from "./holidays.service.js";
 import { estimateMarketPrice, userProvidedPrice } from "./market-price.service.js";
 import { lookupRegionRisk } from "./region.service.js";
@@ -236,6 +236,11 @@ export async function runAnalysis(
       ensureExtractions(caseId, { reparse: opts.reparseDocuments }),
       loadHolidays(),
     ]);
+
+    // 판독이 끝나면 원본 파일은 더 볼 일이 없다 — 아래 규칙 엔진은 전부
+    // `extractions`(구조화된 값)만 쓴다. 화면이 "분석 후 즉시 삭제"를 약속하므로
+    // 여기서 지운다. 실패해도 판정을 막지 않는다(purgeCaseFiles 주석 참고).
+    await purgeCaseFiles(caseId);
 
     const buildingKind = toBuildingKind(row, extractions);
     const multiHousehold = isMultiHousehold(buildingKind, extractions);

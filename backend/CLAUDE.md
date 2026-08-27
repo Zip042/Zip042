@@ -85,6 +85,7 @@ npm test            # 364개
 | **목 모드 쿼리 빌더는 지연 실행** | `MockQuery` 는 `await` 할 때 실행됩니다. `void query` 로 부르면 **아무 일도 일어나지 않습니다**(실제로 시드가 조용히 안 돌던 버그가 있었습니다). 동기 컨텍스트에서는 `store.table()` 에 직접 쓰세요. |
 | **목 모드가 운영과 달라지는 것** | 목이 제약을 흉내내지 않으면 "목에서만 통과하는 코드"가 생깁니다. `analysis_jobs` 의 부분 unique 인덱스처럼 **동작 차이를 만드는 제약은 목에도 넣었습니다**(`UNIQUE_CONSTRAINTS`). 새 제약을 추가하면 목도 함께 맞추세요. |
 | **npm 스크립트에 `VAR=x cmd` 쓰기** | POSIX 셸 전용 문법이라 **Windows 에서 실행되지 않습니다**(cmd.exe 가 `VAR` 을 명령어로 해석). 팀원 OS 가 섞여 있으니 환경변수는 진입점 파일에서 `process.env.X ??= ...` 로 설정하세요 (`src/server.mock.ts` 참고). |
+| **공유 `adminClient()` 에 세션 심기** | supabase-js 는 요청마다 `세션 토큰 ?? supabaseKey` 순으로 인증 헤더를 고릅니다. 캐시된 `adminClient()` 로 `signInWithPassword` 를 부르면 **그 순간부터 service_role 이 아니라 방금 로그인한 사용자**가 되어, 이후 모든 서버 내부 호출이 RLS 에 막힙니다. 비밀번호 로그인은 `passwordAuthClient()`(캐시 안 함)로만 하세요. |
 | **`process.env` 직접 읽기** | 모든 설정은 `src/env.ts` 의 `EnvSchema` 를 거칩니다. 직접 읽으면 오타가 검증을 통과해 **조용히 기본값·폴백으로 동작**합니다(주소 검색 키가 실제로 이 문제였습니다). 예외는 플랫폼이 주입하는 `process.env.VERCEL` 뿐입니다. |
 | **`.env` 를 라이브러리 코드에서 읽기** | `loadDotEnv()` 는 **진입점에서만** 부릅니다(`server.ts` · `scripts/*`). 라이브러리나 테스트 경로에서 부르면 테스트가 개발자의 로컬 `.env` 에 따라 다르게 동작합니다. 이미 설정된 환경변수를 덮지 않는 것도 규칙입니다 — 플랫폼 주입값이 항상 이깁니다. |
 
@@ -224,6 +225,11 @@ live 모드에서는 AI·공공 API 때문에 불가능한 테스트이므로, �
    키를 넣어도 서버가 못 봤습니다 → `loadDotEnv()` (`process.loadEnvFile` 기반, 의존성 없음)
 10. 주소 검색 키만 `process.env` 직접 읽기 → 오타 시 조용히 목 데이터 폴백. `EnvSchema` 로 이동
 11. `scripts/` 가 tsconfig `include` 밖이라 타입 검사·CI 가 스크립트를 검사하지 않았음
+12. 로그인 한 번이 **전체 서비스**를 깨뜨림 — `signIn` 이 캐시된 `adminClient()` 로
+    `signInWithPassword` 를 불러 공유 클라이언트가 그 사용자로 바뀌었고, 그 뒤 모든
+    사용자의 문서 업로드가 RLS 위반으로 실패. 서버 재시작 전까지 낫지 않았습니다.
+    증상(업로드 실패)이 원인(로그인)과 달라 보여 진단이 오래 걸렸습니다.
+    → `passwordAuthClient()` 분리 + `tests/services/auth-client-isolation.test.ts`
 12. **AI 판독이 한 번도 동작한 적이 없었음** — SDK 의 `betaZodOutputFormat` 이 내부에서
     zod 4 API(`z.toJSONSchema`)를 부르는데 이 저장소는 zod 3 이라 즉시 예외. SDK peer 가
     `^3.25.0 || ^4.0.0` 이라 설치는 조용히 성공했고, **키가 없어 실호출을 못 해 본 동안**
@@ -314,6 +320,14 @@ live 모드에서는 AI·공공 API 때문에 불가능한 테스트이므로, �
   제4조·제6조·제6조의3, 주민등록법 제11조). 개정되면 그 상수들만 고치면 됩니다.
 
 ## 개인정보 처리
+
+- **판독이 끝나면 Storage 원본 파일을 지웁니다** (`purgeCaseFiles`, `analysis.service.ts` 에서 호출).
+  화면이 "서류는 분석 후 즉시 삭제 처리됩니다"라고 약속하므로 코드가 그 약속을 지킵니다.
+  `documents` 행과 `document_extractions` 는 남습니다 — 어떤 서류가 제출됐는지는 판정의
+  입력이고(등기부 미제출은 blockingGap), 판독 결과가 있어야 재조회가 됩니다.
+  **대가**: 강제 재판독(`reparse`)이 안 됩니다. 프롬프트 튜닝은 `npm run extract` 로 하세요.
+  이 동작을 지우려면 프론트 문구(`data/document-checks.ts` 의 `UPLOAD_NOTICE`)도 함께 고쳐야
+  합니다. 안 고치면 화면이 거짓말을 하게 됩니다.
 
 - **피해주택 개별 주소는 클라이언트로 절대 나가지 않습니다.** 집계값과 격자 좌표만 반환합니다.
   `victim_properties` 는 RLS 정책을 만들지 않아(deny-by-default) 클라이언트가 직접 SELECT 할 수 없고,

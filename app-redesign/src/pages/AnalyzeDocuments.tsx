@@ -2,42 +2,11 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRight, Plus, Check, Loader2, X } from "lucide-react";
 import { Button, Card, PageHead, Steps } from "@/components/ui";
+import { WhatWeCheck } from "@/components/WhatWeCheck";
+import { OPTIONAL_CHECKS, UPLOAD_NOTICE } from "@/data/document-checks";
 import { useFlow } from "@/state/flow";
-import { runAnalysis, uploadDocument, getExtraction, getSpecialTerms, type DocType } from "@/lib/zip042";
+import { runAnalysis, uploadDocument, getExtraction, getSpecialTerms } from "@/lib/zip042";
 import { ApiError } from "@/lib/api";
-
-/**
- * 추가 서류.
- *
- * `docType` 은 백엔드가 받는 값과 정확히 같아야 합니다. 확정일자 부여현황은 백엔드에
- * 전용 종류가 없어 `other` 로 보냅니다 — 없는 종류를 지어내면 서버가 400 을 냅니다.
- */
-const OPTIONAL_DOCS: { id: string; docType: DocType; title: string; why: string }[] = [
-  {
-    id: "fixed-date",
-    docType: "other",
-    title: "확정일자 부여현황",
-    why: "등기부에 없는 선순위 세입자가 있는지 확인합니다",
-  },
-  {
-    id: "brokerage",
-    docType: "brokerage_statement",
-    title: "중개대상물 확인·설명서",
-    why: "등기부와 내용이 어긋나는지 대조합니다",
-  },
-  {
-    id: "ledger",
-    docType: "building_ledger",
-    title: "건축물대장",
-    why: "위반건축물이면 보증보험이 거절될 수 있습니다",
-  },
-  {
-    id: "lease",
-    docType: "lease_draft",
-    title: "계약서 초안",
-    why: "특약이 실제로 들어갔는지 확인합니다",
-  },
-];
 
 export default function AnalyzeDocuments() {
   const nav = useNavigate();
@@ -58,7 +27,7 @@ export default function AnalyzeDocuments() {
     try {
       const entries = Object.entries(picked);
       for (const [id, file] of entries) {
-        const doc = OPTIONAL_DOCS.find((d) => d.id === id);
+        const doc = OPTIONAL_CHECKS.find((d) => d.id === id);
         if (!doc) continue;
         setStep(`${doc.title} 올리는 중…`);
         await uploadDocument(caseId, file, doc.docType);
@@ -109,12 +78,27 @@ export default function AnalyzeDocuments() {
       <Steps current={1} />
       <PageHead
         eyebrow="등기부등본 접수 완료"
-        title="추가 서류가 있나요?"
-        lead="없어도 됩니다. 바로 분석할 수 있어요. 다만 서류가 많을수록 '확인하지 못했습니다'가 줄어듭니다."
+        title="안전을 위해 필요한 서류가 있어요!"
+        lead="아래 서류들의 교차 검증이 필요합니다. 부동산에 요청하시거나 각 항목의 발급 링크를 참조하세요."
       />
 
+      {/*
+        서류를 왜 더 내야 하는지를 먼저 말합니다. 이 문단이 없으면 "귀찮은 추가 단계"로
+        읽히고, 그러면 그냥 건너뜁니다 — 정작 다가구 선순위처럼 등기부만으로는
+        절대 알 수 없는 위험이 여기서 걸립니다.
+      */}
+      <Card className="mb-6 bg-surface p-4">
+        <p className="text-[13.5px] leading-relaxed text-ink-700">
+          등기부등본 한 장으로는 <strong className="font-semibold">등기부에 안 적히는 빚</strong>
+          을 볼 수 없습니다. 서류끼리 맞춰봐야 드러나는 것들이 있어요.
+        </p>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-ink-500">
+          없이도 분석은 됩니다. 다만 그만큼 &lsquo;확인하지 못했습니다&rsquo;로 남습니다.
+        </p>
+      </Card>
+
       <ul className="space-y-3">
-        {OPTIONAL_DOCS.map((doc) => {
+        {OPTIONAL_CHECKS.map((doc) => {
           const file = picked[doc.id];
           const emphasized = doc.id === "fixed-date";
           return (
@@ -187,6 +171,8 @@ export default function AnalyzeDocuments() {
                   </button>
                 )}
               </div>
+
+              <WhatWeCheck doc={doc} />
             </Card>
           );
         })}
@@ -214,11 +200,16 @@ export default function AnalyzeDocuments() {
         </Button>
       </div>
 
-      <p className="mt-5 text-center text-[12.5px] leading-relaxed text-ink-300">
-        {busy
-          ? "판독 중입니다. 창을 닫지 마세요."
-          : "서류 판독에는 20~60초가 걸릴 수 있습니다."}
-      </p>
+      <div className="mt-5 space-y-1 text-center text-[12.5px] leading-relaxed text-ink-300">
+        <p>
+          {busy
+            ? "판독 중입니다. 창을 닫지 마세요."
+            : "서류 판독에는 20~60초가 걸릴 수 있습니다."}
+        </p>
+        {UPLOAD_NOTICE.map((t) => (
+          <p key={t}>{t}</p>
+        ))}
+      </div>
     </div>
   );
 }

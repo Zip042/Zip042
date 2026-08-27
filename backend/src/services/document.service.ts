@@ -116,6 +116,63 @@ export async function deleteDocument(caseId: string, documentId: string): Promis
   if (delErr) throw new Error(`문서 삭제: ${delErr.message}`);
 }
 
+/**
+ * 판독이 끝난 뒤 Storage 원본 파일을 지운다.
+ *
+ * ## 왜 지우는가
+ *
+ * 화면이 "서류는 분석 후 즉시 삭제 처리됩니다"라고 약속한다. 등기부·계약서에는
+ * 주민등록번호 뒷자리·계좌번호·이름이 그대로 들어 있어, 우리가 계속 갖고 있을
+ * 이유가 없다. 약속을 코드가 지키게 한다.
+ *
+ * ## 무엇을 남기는가
+ *
+ * `documents` **행은 지우지 않는다.** 어떤 서류가 제출됐는지는 판정의 입력이다
+ * (등기부 미제출은 blockingGap 이다). 판독 결과도 `document_extractions` 에 남으므로
+ * 판정·재조회는 원본 없이 그대로 동작한다. 지워지는 것은 Storage 의 파일뿐이다.
+ *
+ * ## 무엇을 잃는가
+ *
+ * 강제 재판독(`reparse`)이 불가능해진다 — 원본이 없으니 다시 읽을 수 없다.
+ * 프롬프트를 고쳐 다시 읽어야 할 때는 `npm run extract` 로 로컬 파일을 쓰거나
+ * 사용자가 다시 올려야 한다. 개인정보를 안 갖고 있는 값이 이 불편보다 크다.
+ *
+ * 삭제 실패가 판정을 막아서는 안 되므로 던지지 않고 로그만 남긴다. 판정은 이미
+ * 나왔고, 사용자에게 "분석 실패"를 보여주는 쪽이 더 나쁜 결과다.
+ */
+export async function purgeCaseFiles(caseId: string): Promise<void> {
+  const env = loadEnv();
+  const admin = adminClient();
+
+  const { data, error } = await admin
+    .from("documents")
+    .select("id,storage_path")
+    .eq("case_id", caseId);
+  if (error) {
+    log.error("판독 후 원본 삭제: 문서 조회 실패", { caseId, message: error.message });
+    return;
+  }
+
+  const paths = (data ?? [])
+    .map((d) => (d as { storage_path: string | null }).storage_path)
+    .filter((p): p is string => !!p);
+  if (paths.length === 0) return;
+
+  const { error: rmErr } = await admin.storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .remove(paths);
+  if (rmErr) {
+    log.error("판독 후 원본 삭제 실패", { caseId, count: paths.length, message: rmErr.message });
+    return;
+  }
+
+  // `storage_path` 는 그대로 둔다 — 비우려면 not null 을 푸는 마이그레이션이 필요하고,
+  // 굳이 필요하지도 않다. 지워진 파일을 다시 내려받으려 하면 Storage 가
+  // "Object not found" 를 주고, 그게 판독 실패로 사용자에게 그대로 보인다.
+  // 조용히 잘못된 값을 만들어내지 않으므로 이 실패 방식은 안전하다.
+  log.info("판독 후 원본 삭제 완료", { caseId, count: paths.length });
+}
+
 async function downloadDocument(storagePath: string): Promise<Buffer> {
   const env = loadEnv();
   const { data, error } = await adminClient()
