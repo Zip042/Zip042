@@ -332,12 +332,6 @@ export async function getExtraction(caseId: string): Promise<RegistryExtraction 
     isSectionedBuilding: r.isSectionedBuilding,
     unreadableSections: r.unreadableSections ?? [],
     rights,
-    meta: {
-      model: res.model ?? "알 수 없음",
-      // 판독 소요 시간은 백엔드가 내지 않습니다. 0 을 넣어 "즉시 끝났다"고
-      // 오해하게 만들지 않고, 화면에서 감춥니다.
-      elapsedSec: 0,
-    },
   };
 }
 

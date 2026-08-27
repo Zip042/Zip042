@@ -361,8 +361,6 @@ export interface RegistryExtraction {
   rights: ExtractedRight[];
   /** 읽지 못한 부분. 비어 있다고 정확하다는 뜻은 아닙니다. */
   unreadableSections: string[];
-  /** 판독에 걸린 시간(초)과 모델. 재현성 확인용. */
-  meta: { model: string; elapsedSec: number };
 }
 
 export const EXTRACTION: RegistryExtraction = {
@@ -374,7 +372,6 @@ export const EXTRACTION: RegistryExtraction = {
   ownershipAcquiredOn: "2022-07-14",
   isTrustProperty: false,
   isSectionedBuilding: true,
-  meta: { model: "claude-sonnet-5", elapsedSec: 31.5 },
   unreadableSections: [],
   rights: [
     {

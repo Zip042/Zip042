@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Quote, TriangleAlert, Check, Pencil, ScanLine } from "lucide-react";
+import { ArrowRight, Quote, TriangleAlert, Check, Pencil } from "lucide-react";
 import { Button, Card, PageHead, Steps, formatMan } from "@/components/ui";
 import { Failed, Loading, NoCase } from "@/components/AsyncState";
 import { useFlow } from "@/state/flow";
@@ -91,11 +91,6 @@ export default function AnalyzeReview() {
             value={x.unreadableSections.length === 0 ? "없음" : `${x.unreadableSections.length}건`}
             tone={x.unreadableSections.length > 0 ? "warn" : "ok"}
           />
-          <div className="ml-auto flex items-center gap-1.5 text-[12px] text-ink-300">
-            <ScanLine className="size-3.5" />
-            {x.meta.model}
-            {x.meta.elapsedSec > 0 ? ` · ${x.meta.elapsedSec}초` : ""}
-          </div>
         </div>
       </Card>
 
