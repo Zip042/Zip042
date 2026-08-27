@@ -96,7 +96,7 @@ export default function Login() {
             </p>
           )}
 
-          <Button size="lg" full disabled={busy}>
+          <Button type="submit" size="lg" full disabled={busy}>
             {busy ? (
               <Loader2 className="size-4 animate-spin" />
             ) : mode === "login" ? (

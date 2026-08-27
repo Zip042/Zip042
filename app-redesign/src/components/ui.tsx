@@ -80,6 +80,12 @@ type ButtonProps = {
   full?: boolean;
   onClick?: () => void;
   disabled?: boolean;
+  /**
+   * 기본은 "button" 이다 — 대부분의 쓰임(내비게이션·액션)이 폼 밖이라, 실수로
+   * 감싸고 있는 폼을 제출해버리는 걸 막기 위한 안전한 기본값이다.
+   * 폼 제출 버튼으로 쓸 때만 명시적으로 "submit" 을 넘긴다.
+   */
+  type?: "button" | "submit";
 };
 
 export function Button({
@@ -91,6 +97,7 @@ export function Button({
   full,
   onClick,
   disabled,
+  type = "button",
 }: ButtonProps) {
   const base =
     "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:opacity-45 disabled:pointer-events-none";
@@ -103,7 +110,7 @@ export function Button({
   const cls = `${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${className}`;
   if (to) return <Link to={to} className={cls}>{children}</Link>;
   return (
-    <button type="button" className={cls} onClick={onClick} disabled={disabled}>
+    <button type={type} className={cls} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
