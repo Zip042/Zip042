@@ -12,6 +12,8 @@ import { requireAdminToken, requireAuth, type AppBindings } from "./middleware/a
 import { RATE_LIMITS, rateLimit } from "./middleware/rate-limit.js";
 import { adminRoute } from "./routes/admin.js";
 import { devRoute } from "./routes/dev.js";
+import { debugRoute } from "./routes/debug.js";
+import { enableDebugRecorder, recordRequest } from "./lib/debug-recorder.js";
 import { addressRoute } from "./routes/addresses.js";
 import { homeRoute } from "./routes/home.js";
 import { analysisRoute } from "./routes/analysis.js";
@@ -91,12 +93,21 @@ export function createApp() {
   app.use("*", async (c, next) => {
     const started = Date.now();
     await next();
+    const durationMs = Date.now() - started;
+    const requestIdValue = c.get("requestId");
     log.info("request", {
-      requestId: c.get("requestId"),
+      requestId: requestIdValue,
       method: c.req.method,
       path: c.req.path,
       status: c.res.status,
-      durationMs: Date.now() - started,
+      durationMs,
+    });
+    recordRequest({
+      requestId: requestIdValue,
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      durationMs,
     });
   });
 
@@ -253,6 +264,17 @@ export function createApp() {
 
   // 개발용 라우터는 목 모드에서만 존재한다. live 모드에서는 404 가 난다.
   if (env.mode === "mock") app.route("/v1", devRoute);
+
+  // 디버그 콘솔 — 로컬 전용. 판독한 개인정보가 남으므로 명시해야만 켜진다
+  // (운영에서는 env 검증이 부팅을 막는다).
+  if (env.ZIP042_DEBUG_CONSOLE) {
+    enableDebugRecorder();
+    app.route("/v1", debugRoute);
+    log.warn("디버그 콘솔이 켜져 있습니다 — 판독한 개인정보가 남습니다", {
+      url: `http://localhost:${env.PORT}/v1/_debug`,
+      note: "로컬에서만 쓰세요. 외부에 노출하지 마세요.",
+    });
+  }
 
   // ---------------------------------------------------------------------
   // 오류 처리

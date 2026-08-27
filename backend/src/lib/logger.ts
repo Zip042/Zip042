@@ -1,3 +1,5 @@
+import { recordLog } from "./debug-recorder.js";
+
 type Level = "debug" | "info" | "warn" | "error";
 
 const ORDER: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
@@ -18,6 +20,9 @@ function emit(level: Level, message: string, fields?: Record<string, unknown>): 
   };
   const sink = level === "error" || level === "warn" ? console.error : console.log;
   sink(JSON.stringify(line));
+
+  // 관리자 콘솔에도 같은 내용을 남긴다. 꺼져 있으면 아무 일도 하지 않는다.
+  recordLog(level, message, fields);
 }
 
 export const log = {

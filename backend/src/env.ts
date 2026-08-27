@@ -44,6 +44,18 @@ const EnvSchema = z
       .default("false")
       .transform((v) => v === "true"),
 
+    /**
+     * 관리자 디버그 콘솔.
+     *
+     * 최근 요청과 로그를 메모리에 담아 `/v1/_debug` 에서 보여준다. 여기에는 등기부에서
+     * 읽은 **실제 주소·이름이 남으므로** 기본은 꺼 둔다. 운영에서는 아래 superRefine 이
+     * 부팅을 막는다.
+     */
+    ZIP042_DEBUG_CONSOLE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((v) => v === "true"),
+
     // Supabase — live 모드에서만 필수
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_ANON_KEY: z.string().min(20).optional(),
@@ -144,6 +156,18 @@ const EnvSchema = z
     mode: (v.ZIP042_MODE ?? (v.SUPABASE_URL ? "live" : "mock")) as RunMode,
   }))
   .superRefine((v, ctx) => {
+    // 디버그 콘솔은 등기부에서 읽은 실제 주소·이름을 메모리에 담아 화면에 보여준다.
+    // 운영에 켠 채로 올라가면 개인정보가 인증 없이 열린다. 모드와 무관하게 막는다.
+    if (v.NODE_ENV === "production" && v.ZIP042_DEBUG_CONSOLE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ZIP042_DEBUG_CONSOLE"],
+        message:
+          "운영 환경(NODE_ENV=production)에서는 디버그 콘솔을 켤 수 없습니다. " +
+          "판독한 개인정보가 그대로 노출됩니다. 로컬에서만 사용하세요.",
+      });
+    }
+
     if (v.mode === "mock") {
       // 목 모드가 운영 환경에 올라가면 실데이터 없이 그럴듯한 응답을 내보내게 된다. 부팅을 막는다.
       // ZIP042_DEMO=true 로 **의도를 명시**했을 때만 통과시킨다 — 그때는 서버가 스스로 데모임을 밝힌다.
