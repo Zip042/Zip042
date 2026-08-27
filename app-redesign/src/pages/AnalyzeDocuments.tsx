@@ -49,6 +49,8 @@ export default function AnalyzeDocuments() {
   const [error, setError] = useState<string | null>(null);
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  const pickedCount = Object.keys(picked).length;
+
   async function analyze() {
     if (!caseId || busy) return;
     setBusy(true);
@@ -106,8 +108,9 @@ export default function AnalyzeDocuments() {
     <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
       <Steps current={1} />
       <PageHead
-        title="서류를 올려주세요"
-        lead="필요한 서류들을 올릴수록 '확인하지 못했습니다'가 더 줄어듭니다."
+        eyebrow="등기부등본 접수 완료"
+        title="추가 서류가 있나요?"
+        lead="없어도 됩니다. 바로 분석할 수 있어요. 다만 서류가 많을수록 '확인하지 못했습니다'가 줄어듭니다."
       />
 
       <ul className="space-y-3">
@@ -204,7 +207,7 @@ export default function AnalyzeDocuments() {
             </>
           ) : (
             <>
-              분석하기
+              {pickedCount === 0 ? "추가 서류 없이 분석 시작" : "분석 시작"}
               <ArrowRight className="size-4" />
             </>
           )}
@@ -212,7 +215,9 @@ export default function AnalyzeDocuments() {
       </div>
 
       <p className="mt-5 text-center text-[12.5px] leading-relaxed text-ink-300">
-        서류 판독에는 20~60초가 걸릴 수 있습니다.
+        {busy
+          ? "판독 중입니다. 창을 닫지 마세요."
+          : "서류 판독에는 20~60초가 걸릴 수 있습니다."}
       </p>
     </div>
   );
