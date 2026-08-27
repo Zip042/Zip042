@@ -1,10 +1,64 @@
 import { useState } from "react";
-import { UploadCloud, FileCheck2, Info, ArrowRight, X, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router";
+import { UploadCloud, FileCheck2, Info, ArrowRight, X, ExternalLink, Loader2 } from "lucide-react";
 import { Button, Card, PageHead, Steps } from "@/components/ui";
+import { useFlow } from "@/state/flow";
+import { createCase, uploadDocument } from "@/lib/zip042";
+import { ApiError } from "@/lib/api";
+
+/** 파일 상한. 백엔드 스키마와 같은 값입니다(base64 로 부풀 것을 감안한 값). */
+const MAX_BYTES = 10 * 1024 * 1024;
 
 export default function Analyze() {
-  const [file, setFile] = useState<string | null>(null);
+  const nav = useNavigate();
+  const { setCaseId, reset } = useFlow();
+
+  const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [address, setAddress] = useState("");
+  const [depositMan, setDepositMan] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const deposit = Number(depositMan.replace(/[^\d]/g, ""));
+  const ready = file !== null && address.trim().length > 0 && deposit > 0;
+
+  function pick(f: File | undefined) {
+    setError(null);
+    if (!f) return;
+    if (f.size > MAX_BYTES) {
+      setError("파일이 10MB를 넘습니다. 인터넷등기소 PDF 원본을 올려주세요.");
+      return;
+    }
+    setFile(f);
+  }
+
+  async function start() {
+    if (!file || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // 이전 검사 건이 남아 있으면 지웁니다 — 오래된 판정을 새 서류에 붙이면 안 됩니다.
+      reset();
+      const caseId = await createCase({
+        roadAddress: address.trim(),
+        depositMan: deposit,
+      });
+      await uploadDocument(caseId, file, "registry");
+      setCaseId(caseId);
+      nav("/analyze/documents");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "알 수 없는 오류가 발생했습니다.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
@@ -24,7 +78,7 @@ export default function Analyze() {
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            setFile(e.dataTransfer.files?.[0]?.name ?? "등기부등본.pdf");
+            pick(e.dataTransfer.files?.[0]);
           }}
           className={`flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
             dragging ? "border-brand-400 bg-brand-50" : "border-line bg-surface hover:bg-brand-50/40"
@@ -34,7 +88,7 @@ export default function Analyze() {
             type="file"
             accept=".pdf,.jpg,.jpeg,.png"
             className="sr-only"
-            onChange={(e) => setFile(e.target.files?.[0]?.name ?? null)}
+            onChange={(e) => pick(e.target.files?.[0])}
           />
           <span className="grid size-12 place-items-center rounded-2xl bg-white ring-1 ring-line">
             <UploadCloud className="size-5.5 text-brand-600" strokeWidth={1.8} />
@@ -50,8 +104,10 @@ export default function Analyze() {
             <FileCheck2 className="size-5 text-brand-600" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold">{file}</p>
-            <p className="text-[12.5px] text-ink-300">올릴 준비가 되었습니다</p>
+            <p className="truncate text-[14px] font-semibold">{file.name}</p>
+            <p className="text-[12.5px] text-ink-300">
+              {(file.size / 1024 / 1024).toFixed(1)}MB · 올릴 준비가 되었습니다
+            </p>
           </div>
           <button
             onClick={() => setFile(null)}
@@ -62,6 +118,42 @@ export default function Analyze() {
           </button>
         </Card>
       )}
+
+      {/*
+        주소와 보증금은 서류에서 읽을 수 없거나(보증금은 등기부에 없습니다),
+        읽더라도 사용자 확인이 필요한 값입니다. 이 둘이 없으면 시세 조회도,
+        "보증금을 돌려받을 수 있는가" 계산도 할 수 없습니다.
+      */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-[1.4fr_1fr]">
+        <div>
+          <label htmlFor="addr" className="mb-2 block text-[13.5px] font-semibold">
+            주소
+          </label>
+          <input
+            id="addr"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="예) 대전광역시 서구 둔산로 89"
+            className="h-12 w-full rounded-xl border border-line bg-white px-4 text-[14.5px] outline-none placeholder:text-ink-300 focus:border-brand-400"
+          />
+        </div>
+        <div>
+          <label htmlFor="dep" className="mb-2 block text-[13.5px] font-semibold">
+            보증금
+          </label>
+          <div className="flex h-12 items-center rounded-xl border border-line bg-white px-4 focus-within:border-brand-400">
+            <input
+              id="dep"
+              value={depositMan}
+              onChange={(e) => setDepositMan(e.target.value)}
+              inputMode="numeric"
+              placeholder="15,000"
+              className="tnum w-full bg-transparent text-right text-[15px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-300"
+            />
+            <span className="ml-2 shrink-0 text-[13.5px] text-ink-500">만원</span>
+          </div>
+        </div>
+      </div>
 
       <div className="mt-6 rounded-xl bg-surface px-5 py-4">
         <div className="flex gap-3">
@@ -88,10 +180,25 @@ export default function Analyze() {
         </div>
       </div>
 
+      {error && (
+        <Card className="mt-6 border-stop-200 bg-stop-50 p-4">
+          <p className="text-[13.5px] font-semibold text-stop-700">{error}</p>
+        </Card>
+      )}
+
       <div className="mt-8 flex items-center gap-3">
-        <Button to="/analyze/documents" size="lg" disabled={!file} className="flex-1">
-          다음
-          <ArrowRight className="size-4" />
+        <Button size="lg" disabled={!ready || busy} className="flex-1" onClick={start}>
+          {busy ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              올리는 중…
+            </>
+          ) : (
+            <>
+              다음
+              <ArrowRight className="size-4" />
+            </>
+          )}
         </Button>
       </div>
 

@@ -1,15 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Card, PageHead } from "@/components/ui";
-import { CHECKLIST } from "@/data/sample";
+import { Failed, Loading } from "@/components/AsyncState";
+import { getChecklist, type ChecklistStage } from "@/lib/zip042";
 
 export default function Checklist() {
-  const all = CHECKLIST.flatMap((g) => g.items.map((i) => i.text));
+  const [stages, setStages] = useState<ChecklistStage[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string[]>([]);
-  const toggle = (t: string) =>
-    setDone((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  const pct = Math.round((done.length / all.length) * 100);
+  useEffect(() => {
+    let alive = true;
+    getChecklist()
+      .then((s) => alive && setStages(s))
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (error) return <Failed message={error} />;
+  if (!stages) return <Loading label="체크리스트를 불러오는 중…" />;
+
+  const all = stages.flatMap((g) => g.items.map((i) => i.id));
+  const toggle = (id: string) =>
+    setDone((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const pct = all.length === 0 ? 0 : Math.round((done.length / all.length) * 100);
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
@@ -36,20 +53,20 @@ export default function Checklist() {
       </Card>
 
       <div className="space-y-8">
-        {CHECKLIST.map((group) => (
-          <section key={group.phase}>
+        {stages.map((group) => (
+          <section key={group.code}>
             <h2 className="mb-3 flex items-center gap-2.5 text-[13px] font-bold text-ink-700">
               <span className="h-4 w-1 rounded-full bg-brand-400" />
-              {group.phase}
+              {group.label}
             </h2>
 
             <ul className="space-y-2">
               {group.items.map((item) => {
-                const on = done.includes(item.text);
+                const on = done.includes(item.id);
                 return (
-                  <Card as="li" key={item.text} className={on ? "border-brand-200 bg-brand-50/40" : ""}>
+                  <Card as="li" key={item.id} className={on ? "border-brand-200 bg-brand-50/40" : ""}>
                     <button
-                      onClick={() => toggle(item.text)}
+                      onClick={() => toggle(item.id)}
                       className="flex w-full items-start gap-3 p-4 text-left"
                     >
                       <span
@@ -67,11 +84,11 @@ export default function Checklist() {
                             on ? "text-ink-300 line-through" : "font-medium text-ink-900"
                           }`}
                         >
-                          {item.text}
+                          {item.label}
                         </span>
-                        {item.hint && !on && (
-                          <span className="mt-1 block text-[12.5px] text-warn-600">
-                            {item.hint}
+                        {item.note && !on && (
+                          <span className="mt-1 block text-[12.5px] text-ink-500">
+                            {item.note}
                           </span>
                         )}
                       </span>

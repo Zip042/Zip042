@@ -1,10 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, ArrowRight, Check } from "lucide-react";
 import { Button, Card, Disclaimer, GRADE, GradeChip, Steps, formatMan } from "@/components/ui";
-import { SAMPLE, SPECIAL_TERMS } from "@/data/sample";
+import { Failed, Loading, NoCase } from "@/components/AsyncState";
+import { useFlow } from "@/state/flow";
+import { getAnalysis, getSpecialTerms } from "@/lib/zip042";
 
 export default function AnalyzeResult() {
-  const r = SAMPLE;
+  const { caseId, result, setResult, specialTerms, setSpecialTerms } = useFlow();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // 흐름 중이면 result 가 이미 있습니다. 새로고침 등으로 비어 있으면 서버에서 다시 받습니다.
+  useEffect(() => {
+    if (!caseId || result) return;
+    let alive = true;
+    setLoading(true);
+    Promise.all([getAnalysis(caseId), getSpecialTerms(caseId).catch(() => [])])
+      .then(([r, t]) => {
+        if (!alive) return;
+        setResult(r);
+        setSpecialTerms(t);
+      })
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [caseId, result, setResult, setSpecialTerms]);
+
+  if (!caseId) return <NoCase />;
+  if (error) return <Failed message={error} onRetry={() => setError(null)} />;
+  if (loading || !result) return <Loading label="판정을 불러오는 중…" />;
+
+  const r = result;
 
   // 종합 등급은 최댓값입니다. 평균이 아닙니다 — 하나가 STOP 이면 전체가 STOP 입니다.
   const counts = {
@@ -125,11 +153,17 @@ export default function AnalyzeResult() {
         <p className="mt-1.5 text-[13px] leading-relaxed text-ink-500">
           위 위험을 막는 문구입니다. 그대로 복사해 계약서 특약사항에 넣으세요.
         </p>
-        <ul className="mt-4 space-y-3">
-          {SPECIAL_TERMS.map((t) => (
-            <SpecialTerm key={t.title} title={t.title} body={t.body} />
-          ))}
-        </ul>
+        {specialTerms.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-surface px-5 py-4 text-[13px] text-ink-500">
+            이 계약에 넣을 특약이 아직 없습니다.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {specialTerms.map((t) => (
+              <SpecialTerm key={t.title} title={t.title} body={t.body} />
+            ))}
+          </ul>
+        )}
       </section>
 
       <div className="mt-8">

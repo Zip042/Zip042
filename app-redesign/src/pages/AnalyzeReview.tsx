@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Quote, TriangleAlert, Check, Pencil, ScanLine } from "lucide-react";
 import { Button, Card, PageHead, Steps, formatMan } from "@/components/ui";
-import { EXTRACTION, type ExtractedRight } from "@/data/sample";
+import { Failed, Loading, NoCase } from "@/components/AsyncState";
+import { useFlow } from "@/state/flow";
+import { getExtraction } from "@/lib/zip042";
+import { type ExtractedRight } from "@/data/sample";
 
 /**
  * 판독 확인 — 판정을 보여주기 **전에** 사람이 원본과 대조하는 단계.
@@ -11,8 +14,54 @@ import { EXTRACTION, type ExtractedRight } from "@/data/sample";
  * 어느 문장을 보고 그렇게 읽었는지를 함께 보여주고, 다르면 바로잡게 합니다.
  */
 export default function AnalyzeReview() {
-  const x = EXTRACTION;
+  const { caseId, extraction, setExtraction } = useFlow();
   const [corrections, setCorrections] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!caseId || extraction) return;
+    let alive = true;
+    setLoading(true);
+    getExtraction(caseId)
+      .then((e) => alive && setExtraction(e))
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [caseId, extraction, setExtraction]);
+
+  if (!caseId) return <NoCase />;
+  if (error) return <Failed message={error} onRetry={() => setError(null)} />;
+  if (loading) return <Loading label="판독 결과를 불러오는 중…" />;
+
+  // 판독 자체가 없는 경우 — "읽었는데 비었다"와 다릅니다. 판정으로 넘어갈 수는 있게 둡니다.
+  if (!extraction) {
+    return (
+      <div className="mx-auto max-w-2xl px-5 py-16">
+        <Steps current={2} />
+        <Card className="border-warn-200 bg-warn-50 p-6">
+          <p className="text-[15px] font-bold text-warn-600">등기부를 판독하지 못했습니다</p>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-warn-600/85">
+            판독 결과가 없어 원본과 대조할 수 없습니다. 판정은 나머지 정보로만 계산됐으므로
+            실제 위험은 표시된 것보다 클 수 있습니다.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <Button to="/analyze" variant="ghost">
+              서류 다시 올리기
+            </Button>
+            <Button to="/analyze/result">
+              그래도 판정 보기
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const x = extraction;
 
   const gap = x.rights.filter((r) => r.section === "gap");
   const eul = x.rights.filter((r) => r.section === "eul");
@@ -44,7 +93,8 @@ export default function AnalyzeReview() {
           />
           <div className="ml-auto flex items-center gap-1.5 text-[12px] text-ink-300">
             <ScanLine className="size-3.5" />
-            {x.meta.model} · {x.meta.elapsedSec}초
+            {x.meta.model}
+            {x.meta.elapsedSec > 0 ? ` · ${x.meta.elapsedSec}초` : ""}
           </div>
         </div>
       </Card>

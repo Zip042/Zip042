@@ -1,14 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { Card, PageHead } from "@/components/ui";
-import { GLOSSARY } from "@/data/sample";
+import { Failed, Loading } from "@/components/AsyncState";
+import { getGlossary, type GlossaryTerm } from "@/lib/zip042";
 
 export default function Glossary() {
   const [q, setQ] = useState("");
-  const [open, setOpen] = useState<string | null>(GLOSSARY[0]?.term ?? null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [terms, setTerms] = useState<GlossaryTerm[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const list = GLOSSARY.filter(
-    (t) => t.term.includes(q) || t.short.includes(q) || t.body.includes(q),
+  useEffect(() => {
+    let alive = true;
+    getGlossary()
+      .then((t) => {
+        if (!alive) return;
+        setTerms(t);
+        setOpen(t[0]?.code ?? null);
+      })
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (error) return <Failed message={error} />;
+  if (!terms) return <Loading label="용어사전을 불러오는 중…" />;
+
+  const list = terms.filter(
+    (t) => t.term.includes(q) || t.summary.includes(q) || t.description.includes(q),
   );
 
   return (
@@ -35,16 +55,16 @@ export default function Glossary() {
       ) : (
         <ul className="space-y-2.5">
           {list.map((t) => {
-            const isOpen = open === t.term;
+            const isOpen = open === t.code;
             return (
-              <Card as="li" key={t.term} className="overflow-hidden">
+              <Card as="li" key={t.code} className="overflow-hidden">
                 <button
-                  onClick={() => setOpen(isOpen ? null : t.term)}
+                  onClick={() => setOpen(isOpen ? null : t.code)}
                   className="flex w-full items-center gap-3 p-5 text-left"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-bold">{t.term}</span>
-                    <span className="mt-1 block text-[13px] text-ink-500">{t.short}</span>
+                    <span className="mt-1 block text-[13px] text-ink-500">{t.summary}</span>
                   </span>
                   <ChevronDown
                     className={`size-4 shrink-0 text-ink-300 transition-transform ${
@@ -55,7 +75,7 @@ export default function Glossary() {
 
                 {isOpen && (
                   <p className="border-t border-line bg-surface/60 px-5 py-4 text-[13.5px] leading-relaxed text-ink-700">
-                    {t.body}
+                    {t.description}
                   </p>
                 )}
               </Card>

@@ -1,14 +1,21 @@
 import { ArrowRight, CircleCheck, Quote, TriangleAlert } from "lucide-react";
 import { Button, Card, GRADE, GradeChip, PageHead, Steps } from "@/components/ui";
-import { SAMPLE } from "@/data/sample";
+import { NoCase } from "@/components/AsyncState";
+import { useFlow } from "@/state/flow";
 
 /**
  * 계약서의 장단점 — 판정 항목을 좋은 점과 확인이 필요한 점으로 나눠 보여줍니다.
  * OK 등급은 장점, 그 외(WARN·STOP·UNKNOWN)는 확인이 필요한 점입니다.
  */
 export default function AnalyzeProsCons() {
-  const pros = SAMPLE.judgments.filter((j) => j.grade === "OK");
-  const cons = SAMPLE.judgments.filter((j) => j.grade !== "OK");
+  const { caseId, result } = useFlow();
+
+  // 판정 없이 이 화면만 열린 경우(새로고침 등)는 판정 화면으로 되돌립니다.
+  // 여기서 다시 분석을 부르면 같은 결과를 두 번 계산하게 됩니다.
+  if (!caseId || !result) return <NoCase />;
+
+  const pros = result.judgments.filter((j) => j.grade === "OK");
+  const cons = result.judgments.filter((j) => j.grade !== "OK");
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
@@ -98,8 +105,8 @@ export default function AnalyzeProsCons() {
 
       <p className="mt-6 text-[12.5px] leading-relaxed text-ink-300">
         종합 등급은 이 중 가장 나쁜 항목을 따릅니다.{" "}
-        <span className={GRADE[SAMPLE.overallGrade].chipText}>
-          현재 {GRADE[SAMPLE.overallGrade].label}
+        <span className={GRADE[result.overallGrade].chipText}>
+          현재 {GRADE[result.overallGrade].label}
         </span>
         입니다.
       </p>
