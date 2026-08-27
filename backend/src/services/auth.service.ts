@@ -1,4 +1,4 @@
-import { adminClient } from "../lib/supabase.js";
+import { adminClient, passwordAuthClient } from "../lib/supabase.js";
 import { badRequest, upstreamFailed } from "../lib/errors.js";
 import { log } from "../lib/logger.js";
 
@@ -46,8 +46,10 @@ export async function signUp(email: string, password: string): Promise<AuthSessi
 }
 
 export async function signIn(email: string, password: string): Promise<AuthSession> {
-  const admin = adminClient();
-  const { data, error } = await admin.auth.signInWithPassword({ email, password });
+  // adminClient() 를 쓰면 안 된다 — signInWithPassword 가 그 캐시된 클라이언트에
+  // 세션을 심어서, 이후 모든 서버 내부 호출이 service_role 대신 이 사용자로 나간다.
+  // 자세한 이유는 passwordAuthClient() 주석 참고.
+  const { data, error } = await passwordAuthClient().auth.signInWithPassword({ email, password });
 
   if (error || !data.session) {
     if (error?.message.includes("Invalid login credentials")) {

@@ -48,6 +48,26 @@ export function adminClient(): Db {
   return admin;
 }
 
+/**
+ * 비밀번호 로그인 전용 클라이언트.
+ *
+ * **캐시하지 않는다.** `signInWithPassword` 는 호출한 클라이언트에 세션을 심는데,
+ * supabase-js 는 요청마다 `세션 토큰 ?? supabaseKey` 순으로 인증 헤더를 고른다.
+ * 그래서 캐시된 `adminClient()` 로 로그인하면 그 순간부터 service_role 이 아니라
+ * **방금 로그인한 사용자**로 모든 서버 내부 호출이 나가고, RLS 에 막힌다.
+ * (실제로 이 버그가 있었다 — 누군가 로그인하면 그 뒤 모든 사람의 문서 업로드가 깨졌다.)
+ *
+ * 매번 새 인스턴스를 만들어 세션이 어디에도 남지 않게 한다. 비밀번호 로그인은
+ * anon 키로 하는 것이 정상이므로 service_role 도 쓰지 않는다.
+ */
+export function passwordAuthClient(): Db {
+  const env = loadEnv();
+  if (env.mode === "mock") return mockClient();
+  return createClient(env.SUPABASE_URL!, env.SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 export function userClient(accessToken: string): Db {
   const env = loadEnv();
   if (env.mode === "mock") return mockClient();
