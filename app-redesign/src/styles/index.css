@@ -1,0 +1,216 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+/**
+ * Zip042 디자인 토큰
+ *
+ * 색을 네 갈래로 나눈 이유가 있습니다. 이 서비스의 판정은 두 축입니다 —
+ * "위험한가"와 "알 수 있는가". 그래서 **모름(UNKNOWN)은 절대 빨강이 아닙니다.**
+ * 정보가 없는 것을 위험으로 칠하면 사용자는 멀쩡한 계약을 포기하고,
+ * 반대로 위험과 섞이면 진짜 위험이 묻힙니다.
+ *
+ *   초록  정상 · 브랜드 · 행동 유도
+ *   빨강  멈춤 (STOP) — 아껴 씁니다. 여기서만 씁니다.
+ *   호박  확인 필요 (WARN)
+ *   회청  판단 불가 (UNKNOWN) — 경고색이 아닙니다
+ */
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+
+  /* 브랜드 — 깊고 차분한 초록. 형광기 없이 */
+  --color-brand-50:  #EDF7F2;
+  --color-brand-100: #D3ECE0;
+  --color-brand-200: #A8D9C2;
+  --color-brand-400: #46A47A;
+  --color-brand-500: #17805A;
+  --color-brand-600: #116A4A;
+  --color-brand-700: #0C5239;
+
+  /* 멈춤 — 벽돌빛에 가까운 절제된 빨강 */
+  --color-stop-50:  #FDF0F0;
+  --color-stop-100: #FADDDD;
+  --color-stop-200: #F2BDBD;
+  --color-stop-500: #C43C3C;
+  --color-stop-600: #A82F30;
+  --color-stop-700: #8A2526;
+
+  /* 확인 필요 */
+  --color-warn-50:  #FDF6EA;
+  --color-warn-100: #FAEBCE;
+  --color-warn-200: #F2D79E;
+  --color-warn-500: #B87A0E;
+  --color-warn-600: #99630A;
+
+  /* 판단 불가 — 중립 회청. 경고가 아니라 '비어 있음' */
+  --color-mute-50:  #F3F5F7;
+  --color-mute-100: #E5E9ED;
+  --color-mute-200: #CBD3DB;
+  --color-mute-500: #64748B;
+  --color-mute-600: #4A5768;
+
+  /* 지면 */
+  --color-ink-900: #101815;
+  --color-ink-700: #33403A;
+  --color-ink-500: #63736B;
+  --color-ink-300: #9BA8A1;
+  --color-line:    #E4EAE7;
+  --color-surface: #F7F9F8;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: 'tnum';
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
+  }
+  /* 숫자가 많은 서비스라 표·금액에서 자릿수가 흔들리지 않게 */
+  .tnum { font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--color-brand-100); }
+}
+
+/* ── 모션 ─────────────────────────────────────────────────────────────
+   스크롤 진입 연출과 수치 강조에만 씁니다. 장식용 움직임은 넣지 않습니다 —
+   판정 화면에서 애니메이션이 많으면 내용을 읽는 데 방해가 됩니다. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes growX {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.rise    { animation: rise .7s cubic-bezier(.2,.7,.3,1) both; }
+.fadein  { animation: fade .8s ease both; }
+
+/* 스크롤 진입 전 상태 — JS(IntersectionObserver)가 .is-in 을 붙이면 올라옵니다 */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.reveal.is-in { opacity: 1; transform: none; }
+
+/* 움직임을 줄여달라는 설정을 존중합니다 */
+@media (prefers-reduced-motion: reduce) {
+  .rise, .fadein { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ── 화면을 채우는 연출 ────────────────────────────────────────────────
+   마케팅 화면(홈)에만 씁니다. 판정·판독 화면은 읽는 곳이라 조용히 둡니다. */
+
+@keyframes blob {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(4%, -6%) scale(1.12); }
+  66%     { transform: translate(-5%, 4%) scale(.94); }
+}
+@keyframes floaty {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-10px); }
+}
+@keyframes shimmer {
+  from { background-position: -140% 0; }
+  to   { background-position: 240% 0; }
+}
+@keyframes drawLine {
+  from { stroke-dashoffset: var(--len); }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(.86) translateY(10px); }
+  60%  { opacity: 1; transform: scale(1.03) translateY(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.blob    { animation: blob 18s ease-in-out infinite; }
+.floaty  { animation: floaty 5s ease-in-out infinite; }
+.popin   { animation: popIn .55s cubic-bezier(.34,1.4,.5,1) both; }
+.slidein { animation: slideRight .6s cubic-bezier(.2,.7,.3,1) both; }
+
+/* 큰 제목에 흐르는 빛 */
+.shine {
+  background: linear-gradient(100deg,
+    var(--color-ink-900) 30%,
+    var(--color-brand-500) 45%,
+    var(--color-ink-900) 60%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 5s linear infinite;
+}
+
+/* SVG 선이 그려지는 연출 */
+.draw {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: drawLine 1.4s cubic-bezier(.4,.1,.2,1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .floaty, .shine, .draw { animation: none; }
+  .popin, .slidein { animation: none; opacity: 1; transform: none; }
+  .shine { color: var(--color-ink-900); }
+}
+
+/* ── 긴 스크롤 랜딩용 연출 ─────────────────────────────────────────── */
+
+@keyframes scanSweep {
+  0%   { top: 0%;   opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes strikeIn {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(196,60,60,.45); }
+  70%  { box-shadow: 0 0 0 18px rgba(196,60,60,0); }
+  100% { box-shadow: 0 0 0 0 rgba(196,60,60,0); }
+}
+@keyframes dashFlow {
+  to { background-position: 40px 0; }
+}
+@keyframes countRoll {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.scanline { animation: scanSweep 2.6s cubic-bezier(.4,0,.5,1) infinite; }
+.strike   { transform-origin: left; animation: strikeIn .5s cubic-bezier(.4,0,.2,1) both; }
+.pulsing  { animation: pulseRing 2.2s ease-out infinite; }
+.rollin   { animation: countRoll .5s cubic-bezier(.2,.7,.3,1) both; }
+
+/* 빈 구간(대항력 공백)을 흐르는 빗금으로 */
+.gapflow {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-stop-200) 0 8px,
+    transparent 8px 20px
+  );
+  background-size: 40px 40px;
+  animation: dashFlow 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanline, .pulsing, .gapflow { animation: none; }
+  .strike, .rollin { animation: none; opacity: 1; transform: none; }
+}
