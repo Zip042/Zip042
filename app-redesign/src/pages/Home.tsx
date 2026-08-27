@@ -105,13 +105,6 @@ function Hero() {
             있나요?
           </h1>
 
-          <p
-            className="rise mt-7 max-w-md text-[17px] leading-relaxed text-ink-500 sm:text-[19px]"
-            style={{ animationDelay: "200ms" }}
-          >
-            등기부등본 한 장, 3분.
-          </p>
-
           <div className="rise mt-9 flex flex-wrap gap-3" style={{ animationDelay: "280ms" }}>
             <Button to="/analyze" size="lg">
               지금 확인하기
@@ -230,7 +223,6 @@ function Simulator() {
   return (
     <Stage
       tone="surface"
-      eyebrow="직접 해보기"
       title={
         <>
           내 상황이라면
@@ -238,7 +230,6 @@ function Simulator() {
           <span className="text-ink-300">어떻게 될까요?</span>
         </>
       }
-      caption="집주인의 빚을 움직여 보세요."
     >
       <div className="mx-auto max-w-4xl">
         <AuctionSim />
@@ -256,7 +247,7 @@ const STEPS = [
 
 function How() {
   return (
-    <Stage eyebrow="이렇게 씁니다" title="세 단계로 끝납니다">
+    <Stage title="세 단계로 끝납니다">
       <ol className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
         {STEPS.map((s, i) => (
           <li

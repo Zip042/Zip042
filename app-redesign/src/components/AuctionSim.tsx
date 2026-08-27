@@ -50,10 +50,6 @@ export default function AuctionSim() {
             <p className="text-[12.5px] font-semibold text-ink-700">경매 낙찰가</p>
             <p className="tnum text-[26px] font-bold leading-none">{eok(auction)}</p>
           </div>
-          <p className="w-full text-[12.5px] leading-relaxed text-ink-500 sm:w-auto sm:flex-1 sm:text-right">
-            경매로 넘어가면 시세대로 팔리지 않습니다.
-            <br className="hidden sm:block" /> 통상 시세의 {RECOVERY * 100}% 안팎에 낙찰됩니다.
-          </p>
         </div>
       </div>
 

@@ -29,7 +29,6 @@ export function ScanSection() {
 
   return (
     <Stage
-      eyebrow="1. 읽기"
       title={
         <>
           서류를 대신 읽습니다
@@ -98,7 +97,6 @@ export function CancelTrap() {
   return (
     <Stage
       tone="surface"
-      eyebrow="가장 흔한 실수"
       title={
         <>
           이미 갚은 빚을
@@ -106,7 +104,6 @@ export function CancelTrap() {
           <span className="text-ink-300">빚으로 세면 안 됩니다</span>
         </>
       }
-      caption="등기부에서 말소된 근저당은 취소선으로만 표시됩니다. 취소선은 글자가 아닙니다."
     >
       <div ref={ref} className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-2">
         {/* 틀린 계산 */}

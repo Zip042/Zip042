@@ -39,6 +39,7 @@
   --color-warn-50:  #FDF6EA;
   --color-warn-100: #FAEBCE;
   --color-warn-200: #F2D79E;
+  --color-warn-300: #E5BC71;
   --color-warn-500: #B87A0E;
   --color-warn-600: #99630A;
 
@@ -46,6 +47,8 @@
   --color-mute-50:  #F3F5F7;
   --color-mute-100: #E5E9ED;
   --color-mute-200: #CBD3DB;
+  --color-mute-300: #AFBAC4;
+  --color-mute-400: #94A3B8;
   --color-mute-500: #64748B;
   --color-mute-600: #4A5768;
 

@@ -11,7 +11,6 @@ export function GapTimeline() {
 
   return (
     <Stage
-      eyebrow="놓치기 쉬운 날짜"
       title={
         <>
           잔금 낸 날부터
@@ -19,7 +18,6 @@ export function GapTimeline() {
           <span className="text-stop-600">4일간 무방비입니다</span>
         </>
       }
-      caption="대항력은 전입신고 다음 날 0시에 생깁니다. 그 사이에 집주인이 대출을 받으면 보증금이 뒤로 밀립니다."
     >
       <div ref={ref} className="mx-auto max-w-4xl">
         {/* 타임라인 */}
@@ -82,15 +80,13 @@ export function Grades() {
   return (
     <Stage
       tone="dark"
-      eyebrow="판정 방식"
       title={
         <>
-          &lsquo;모른다&rsquo;를
+          모른다를
           <br />
-          <span className="text-white/35">&lsquo;괜찮다&rsquo;로 바꾸지 않습니다</span>
+          <span className="text-white/35">괜찮다로 바꾸지 않습니다</span>
         </>
       }
-      caption="서류가 없어 확인 못 한 것을 안전하다고 말하지 않습니다. 위험과 정보 부족은 다른 축입니다."
     >
       <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {GRADES.map((g, i) => {
@@ -109,8 +105,8 @@ export function Grades() {
         })}
       </div>
 
-      <p className="mt-10 text-center text-[13.5px] text-white/40">
-        종합 등급은 <span className="font-semibold text-white/70">가장 나쁜 항목</span>을 따릅니다.
+      <p className="mt-10 text-center text-[13.5px] text-mute-500">
+        종합 등급은 <span className="font-semibold text-mute-400">가장 나쁜 항목</span>을 따릅니다.
         평균이 아닙니다.
       </p>
     </Stage>
