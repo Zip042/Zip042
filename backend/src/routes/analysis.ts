@@ -9,6 +9,7 @@ import { analyzeSchema } from "../schemas/case.js";
 import { getLatestAnalysis, runAnalysis } from "../services/analysis.service.js";
 import { cancelJob, enqueueAnalysis, getJob, listJobs } from "../services/job.service.js";
 import { getCase } from "../services/case.service.js";
+import { getExtractionReview } from "../services/extraction-review.service.js";
 import { assertOwnership } from "./cases.js";
 
 const caseParam = z.object({ caseId: z.string().uuid() });
@@ -92,6 +93,23 @@ analysisRoute.get(
     });
   },
 );
+
+/**
+ * 판독 결과 조회 — 판정을 보여주기 **전에** 사용자가 등기부 원본과 대조하는 화면용.
+ *
+ * AI 가 채권최고액을 한 자리 잘못 읽으면 판정 전체가 틀립니다. 그래서 각 권리를
+ * **어느 문장에서 읽었는지**(sourceQuote)까지 함께 냅니다. 근거를 못 대는 값은
+ * 못 믿는 값입니다.
+ *
+ * 아직 판독 전이면 `registry: null` 입니다 — "안 읽었다"와 "읽었는데 비었다"는
+ * 다르므로 빈 객체로 뭉개지 않습니다.
+ */
+analysisRoute.get("/:caseId/extraction", zValidator("param", caseParam), async (c) => {
+  const { caseId } = c.req.valid("param");
+  await assertOwnership(c.get("accessToken"), caseId);
+  const review = await getExtractionReview(caseId, c.get("user").id);
+  return c.json(review);
+});
 
 analysisRoute.get("/:caseId/analyze/jobs", zValidator("param", caseParam), async (c) => {
   const { caseId } = c.req.valid("param");

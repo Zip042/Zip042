@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ZodType } from "zod";
 import { zodOutputFormat } from "../../src/services/extraction.service.js";
 import {
   brokerageStatementExtractionSchema,
@@ -18,11 +19,14 @@ import {
  * 이 테스트는 그 조합이 다시 깨지면 **키 없이 CI 에서** 잡는다.
  */
 describe("판독 output_format 생성", () => {
-  const cases = [
+  // 세 스키마의 필드가 서로 다르므로 `as const` 로 두면 TS 가 합집합 타입으로 추론해
+  // zodOutputFormat<T> 의 인자와 맞지 않는다. 여기서 확인하려는 것은 "어떤 스키마를
+  // 넣어도 output_format 이 만들어지는가"이므로 unknown 으로 넓혀서 받는다.
+  const cases: [string, ZodType<unknown>][] = [
     ["registry", registryExtractionSchema],
     ["brokerage_statement", brokerageStatementExtractionSchema],
     ["lease_draft", leaseDraftExtractionSchema],
-  ] as const;
+  ];
 
   for (const [name, schema] of cases) {
     describe(name, () => {
@@ -55,9 +59,10 @@ describe("판독 output_format 생성", () => {
   }
 
   it("등기부 스키마에 위험 판단 필드가 없다 (설계 원칙 1)", () => {
-    const { schema: json } = zodOutputFormat(registryExtractionSchema, "registry_extraction") as {
-      schema: { properties: Record<string, unknown> };
-    };
+    const { schema: json } = zodOutputFormat(
+      registryExtractionSchema,
+      "registry_extraction",
+    ) as unknown as { schema: { properties: Record<string, unknown> } };
     const keys = Object.keys(json.properties).join(" ").toLowerCase();
     for (const banned of ["risk", "danger", "safe", "score", "verdict"]) {
       expect(keys).not.toContain(banned);

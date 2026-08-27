@@ -957,6 +957,37 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
           },
         },
       },
+      "/v1/cases/{caseId}/extraction": {
+        get: {
+          tags: ["analysis"],
+          summary: "AI 판독 결과 (사용자가 원본과 대조하기 위한 것)",
+          description:
+            "판정이 아니라 **무엇을 어떻게 읽었는지**를 냅니다. 각 권리마다 " +
+            "`sourceQuote`(등기부 원문 문장)가 붙어 있어, 사용자가 실제 서류와 한 줄씩 " +
+            "대조할 수 있습니다. AI 가 채권최고액을 한 자리 잘못 읽으면 판정 전체가 " +
+            "틀리므로, 판정을 보여주기 전에 이 화면을 거치게 하세요. " +
+            "아직 판독 전이면 `registry` 가 null 입니다 — 빈 객체로 뭉개지 않습니다. " +
+            "`confidence` 는 **모델 자기보고값이며 정확도 보장이 아닙니다.**",
+          parameters: [caseIdParam],
+          responses: {
+            "200": jsonResponse("판독 결과", {
+              type: "object",
+              properties: {
+                registry: {
+                  description: "등기부 판독 원문. 판독 전이면 null.",
+                  nullable: true,
+                  type: "object",
+                },
+                confidence: { type: "number", nullable: true },
+                model: { type: "string", nullable: true },
+                schemaVersion: { type: "string", nullable: true },
+                extractedAt: { type: "string", format: "date-time", nullable: true },
+              },
+            }),
+            ...errorResponses,
+          },
+        },
+      },
       "/v1/cases/{caseId}/analyses": {
         get: {
           tags: ["analysis"],
