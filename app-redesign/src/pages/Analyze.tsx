@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UploadCloud, FileCheck2, Info, ArrowRight, X } from "lucide-react";
+import { UploadCloud, FileCheck2, Info, ArrowRight, X, ExternalLink } from "lucide-react";
 import { Button, Card, PageHead, Steps } from "@/components/ui";
 
 export default function Analyze() {
@@ -63,14 +63,28 @@ export default function Analyze() {
         </Card>
       )}
 
-      <div className="mt-6 flex gap-3 rounded-xl bg-surface px-5 py-4">
-        <Info className="mt-0.5 size-4 shrink-0 text-ink-300" />
-        <div className="text-[13px] leading-relaxed text-ink-500">
-          <p className="font-semibold text-ink-700">말소사항 포함으로 발급받으세요</p>
-          <p className="mt-1">
-            말소된 근저당까지 보여야 정확하게 판단할 수 있습니다. 인터넷등기소에서
-            &lsquo;말소사항 포함&rsquo;을 선택하면 됩니다.
-          </p>
+      <div className="mt-6 rounded-xl bg-surface px-5 py-4">
+        <div className="flex gap-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-ink-300" />
+          <div className="text-[13px] leading-relaxed text-ink-500">
+            <p className="font-semibold text-ink-700">말소사항 포함으로 발급받으세요</p>
+            <p className="mt-1">
+              말소된 근저당까지 보여야 정확하게 판단할 수 있습니다. 인터넷등기소에서
+              &lsquo;말소사항 포함&rsquo;을 선택하면 됩니다.
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-3">
+          <Info className="size-4 shrink-0 text-brand-500" />
+          <a
+            href="https://www.iros.go.kr/index.jsp"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[13px] font-semibold text-brand-500 hover:underline"
+          >
+            등기부등본 발급 바로가기
+            <ExternalLink className="size-3.5" />
+          </a>
         </div>
       </div>
 

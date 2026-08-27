@@ -134,7 +134,7 @@ export function PageHead({
 
 /** 진행 단계 표시. 분석 흐름 3단계에서 공통으로 씁니다. */
 export function Steps({ current }: { current: 1 | 2 | 3 | 4 }) {
-  const steps = ["서류", "계약 조건", "판독 확인", "판정"];
+  const steps = ["서류", "판독 확인", "판정", "세부사항"];
   return (
     <ol className="mb-8 flex items-center gap-2">
       {steps.map((label, i) => {

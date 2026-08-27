@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ChevronDown, Copy, Quote, ArrowRight, Check } from "lucide-react";
+import { Copy, ArrowRight, Check } from "lucide-react";
 import { Button, Card, Disclaimer, GRADE, GradeChip, Steps, formatMan } from "@/components/ui";
-import { SAMPLE, SPECIAL_TERMS, type Judgment } from "@/data/sample";
+import { SAMPLE, SPECIAL_TERMS } from "@/data/sample";
 
 export default function AnalyzeResult() {
   const r = SAMPLE;
@@ -16,7 +16,7 @@ export default function AnalyzeResult() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
-      <Steps current={4} />
+      <Steps current={3} />
 
       {/* 종합 판정 */}
       <Card className="overflow-hidden">
@@ -103,12 +103,18 @@ export default function AnalyzeResult() {
         )}
       </Card>
 
-      {/* 항목별 판정 */}
+      {/* 항목별 판정 — 간단 요약. 자세한 장단점은 다음 페이지에서 다룹니다 */}
       <section className="mt-8">
         <h2 className="mb-3 text-[15px] font-bold">항목별로 살펴보기</h2>
-        <ul className="space-y-2.5">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
           {r.judgments.map((j) => (
-            <JudgmentItem key={j.code} judgment={j} />
+            <li key={j.code} className="flex items-center gap-3 px-5 py-3.5">
+              <span className={`size-2 shrink-0 rounded-full ${GRADE[j.grade].dot}`} />
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
+                {j.title}
+              </span>
+              <GradeChip grade={j.grade} />
+            </li>
           ))}
         </ul>
       </section>
@@ -131,8 +137,8 @@ export default function AnalyzeResult() {
       </div>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Button to="/checklist" size="lg" className="flex-1">
-          다음 할 일 확인하기
+        <Button to="/analyze/pros-cons" size="lg" className="flex-1">
+          장단점 자세히 보기
           <ArrowRight className="size-4" />
         </Button>
         <Button to="/analyze/review" variant="ghost" size="lg">
@@ -154,72 +160,6 @@ function CalcRow({ label, value, muted }: { label: string; value: string; muted?
   );
 }
 
-function JudgmentItem({ judgment: j }: { judgment: Judgment }) {
-  const [open, setOpen] = useState(j.grade === "STOP" || j.grade === "WARN");
-
-  return (
-    <Card as="li" className="overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start gap-3 p-5 text-left"
-      >
-        <span className={`mt-1.5 size-2 shrink-0 rounded-full ${GRADE[j.grade].dot}`} />
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-[14.5px] font-bold">{j.title}</span>
-            <GradeChip grade={j.grade} />
-          </span>
-          <span className="mt-1.5 block text-[13.5px] leading-relaxed text-ink-500">
-            {j.description}
-          </span>
-        </span>
-        <ChevronDown
-          className={`mt-1 size-4 shrink-0 text-ink-300 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div className="space-y-4 border-t border-line bg-surface/60 px-5 py-4">
-          {j.basis.length > 0 && (
-            <div>
-              <p className="text-[12px] font-semibold text-ink-700">판단 근거</p>
-              <ul className="mt-1.5 space-y-1">
-                {j.basis.map((b) => (
-                  <li key={b} className="flex gap-2 text-[12.5px] text-ink-500">
-                    <span className="mt-[7px] size-1 shrink-0 rounded-full bg-ink-300" />
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {j.sourceQuotes.length > 0 && (
-            <div>
-              <p className="text-[12px] font-semibold text-ink-700">등기부 원문</p>
-              {j.sourceQuotes.map((q) => (
-                <p
-                  key={q}
-                  className="mt-1.5 flex gap-2 rounded-lg border border-line bg-white px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-700"
-                >
-                  <Quote className="mt-0.5 size-3 shrink-0 text-ink-300" />
-                  {q}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {j.nextAction && (
-            <div className="rounded-lg bg-brand-50 px-4 py-3">
-              <p className="text-[12px] font-semibold text-brand-700">이렇게 하세요</p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-brand-700/90">{j.nextAction}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
-  );
-}
 
 function SpecialTerm({ title, body }: { title: string; body: string }) {
   const [copied, setCopied] = useState(false);

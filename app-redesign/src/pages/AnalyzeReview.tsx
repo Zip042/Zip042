@@ -24,7 +24,7 @@ export default function AnalyzeReview() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
-      <Steps current={3} />
+      <Steps current={2} />
 
       <PageHead
         eyebrow="판독 완료"
