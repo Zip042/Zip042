@@ -1,5 +1,4 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { ShieldCheck } from "lucide-react";
 
 const NAV = [
   { to: "/analyze", label: "계약 검사" },
@@ -16,9 +15,7 @@ export default function Layout() {
       <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-6 px-6 lg:px-12">
           <Link to="/" className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-brand-500">
-              <ShieldCheck className="size-4 text-white" strokeWidth={2.5} />
-            </span>
+            <img src="/logo.jpg" alt="Zip042" className="size-7 shrink-0 rounded-lg" />
             <span className="text-[17px] font-bold tracking-[-0.02em]">Zip042</span>
           </Link>
 
