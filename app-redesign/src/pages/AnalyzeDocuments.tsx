@@ -72,7 +72,7 @@ export default function AnalyzeDocuments() {
                   </span>
                   {emphasized && (
                     <span className="mt-0.5 block text-[12.5px] leading-relaxed text-stop-600">
-                      임차인(집주인) 동의가 필요합니다
+                      임대인(집주인) 동의가 필요합니다
                     </span>
                   )}
                 </span>
