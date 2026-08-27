@@ -21,7 +21,8 @@
     "openapi": "tsx scripts/generate-openapi.ts",
     "preflight": "tsx scripts/preflight.ts",
     "extract": "tsx scripts/extract-once.ts",
-    "import:housing-price": "tsx scripts/import-housing-price.ts"
+    "import:housing-price": "tsx scripts/import-housing-price.ts",
+    "dev:token": "tsx scripts/dev-token.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
