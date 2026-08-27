@@ -611,6 +611,62 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:8787"): Recor
           responses: { "200": jsonResponse("정상", { type: "object" }) },
         },
       },
+      "/v1/auth/signup": {
+        post: {
+          tags: ["auth"],
+          summary: "회원가입",
+          security: [],
+          description:
+            "가입과 동시에 서버가 이메일 확인을 처리하고 로그인까지 시켜 access token 을 " +
+            "돌려줍니다. Supabase 기본 가입은 확인 메일을 보내고 확인 전엔 로그인이 안 되는데, " +
+            "그 흐름을 팀 내부 도구에 맞게 생략한 것입니다.",
+          requestBody: jsonBody({
+            type: "object",
+            required: ["email", "password"],
+            properties: {
+              email: { type: "string", format: "email" },
+              password: { type: "string", minLength: 6 },
+            },
+          }),
+          responses: {
+            "201": jsonResponse("가입 및 로그인 완료", {
+              type: "object",
+              properties: {
+                accessToken: { type: "string" },
+                userId: { type: "string", format: "uuid" },
+                email: { type: "string" },
+              },
+            }),
+            "400": errorResponses["400"],
+          },
+        },
+      },
+      "/v1/auth/login": {
+        post: {
+          tags: ["auth"],
+          summary: "로그인",
+          security: [],
+          requestBody: jsonBody({
+            type: "object",
+            required: ["email", "password"],
+            properties: {
+              email: { type: "string", format: "email" },
+              password: { type: "string" },
+            },
+          }),
+          responses: {
+            "200": jsonResponse("로그인 완료", {
+              type: "object",
+              properties: {
+                accessToken: { type: "string" },
+                userId: { type: "string", format: "uuid" },
+                email: { type: "string" },
+              },
+            }),
+            "400": errorResponses["400"],
+          },
+        },
+      },
       "/v1/meta": {
         get: {
           tags: ["meta"],

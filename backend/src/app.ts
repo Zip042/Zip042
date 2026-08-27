@@ -11,6 +11,7 @@ import { todayKst } from "./lib/date.js";
 import { requireAdminToken, requireAuth, type AppBindings } from "./middleware/auth.js";
 import { RATE_LIMITS, rateLimit } from "./middleware/rate-limit.js";
 import { adminRoute } from "./routes/admin.js";
+import { authRoute } from "./routes/auth.js";
 import { devRoute } from "./routes/dev.js";
 import { debugRoute } from "./routes/debug.js";
 import { enableDebugRecorder, recordRequest } from "./lib/debug-recorder.js";
@@ -173,6 +174,8 @@ export function createApp() {
     });
   });
 
+  app.route("/v1/auth", authRoute);
+
   // 교육용 콘텐츠는 로그인 없이 볼 수 있게 둔다.
   // 계약 전에 알아야 할 정보에 가입을 요구하면 정작 필요한 사람이 못 본다.
   app.route("/v1", termsCatalogRoute);
@@ -238,6 +241,7 @@ export function createApp() {
   // 계약서 초안도 캐시 미스 시 ensureExtractions 를 거쳐 AI 호출로 이어질 수 있다.
   app.use("/v1/cases/:caseId/contract-draft", rateLimit(RATE_LIMITS.analyze));
   app.use("/v1/cases/:caseId/documents/upload-url", rateLimit(RATE_LIMITS.upload));
+  app.use("/v1/auth/*", rateLimit(RATE_LIMITS.auth));
   app.use("/v1/addresses/*", rateLimit(RATE_LIMITS.address));
   app.use("/v1/cases", rateLimit(RATE_LIMITS.write));
 

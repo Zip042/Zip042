@@ -92,6 +92,8 @@ export const RATE_LIMITS = {
   read: { bucket: "read", limit: 300, windowMs: 60 * 1000 },
   /** 쓰기 (검사 건 생성·수정) */
   write: { bucket: "write", limit: 60, windowMs: 60 * 1000 },
+  /** 로그인·회원가입 — 무차별 대입 방지. IP 단위로 세므로 사용자 수 제한이 아니다. */
+  auth: { bucket: "auth", limit: 20, windowMs: 15 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitOptions>;
 
 /**

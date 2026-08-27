@@ -1,4 +1,6 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { LogOut } from "lucide-react";
+import { useAuth } from "@/state/auth";
 
 const NAV = [
   { to: "/analyze", label: "계약 검사" },
@@ -8,6 +10,8 @@ const NAV = [
 
 export default function Layout() {
   const { pathname } = useLocation();
+  const nav = useNavigate();
+  const { email, signOut } = useAuth();
   const onHome = pathname === "/";
 
   return (
@@ -35,14 +39,37 @@ export default function Layout() {
             ))}
           </nav>
 
-          {!onHome && (
-            <Link
-              to="/analyze"
-              className="ml-auto inline-flex h-9 items-center rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white hover:bg-brand-600 sm:ml-0"
-            >
-              검사 시작
-            </Link>
-          )}
+          <div className={`flex items-center gap-3 ${onHome ? "ml-auto" : ""}`}>
+            {email ? (
+              <button
+                onClick={() => {
+                  signOut();
+                  nav("/");
+                }}
+                className="group flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] text-ink-500 hover:bg-surface hover:text-ink-900"
+                title="로그아웃"
+              >
+                <span className="max-w-[140px] truncate">{email}</span>
+                <LogOut className="size-3.5 shrink-0 text-ink-300 group-hover:text-ink-500" />
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="text-[13.5px] font-medium text-ink-500 hover:text-ink-900"
+              >
+                로그인
+              </Link>
+            )}
+
+            {!onHome && (
+              <Link
+                to="/analyze"
+                className="inline-flex h-9 items-center rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white hover:bg-brand-600"
+              >
+                검사 시작
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
