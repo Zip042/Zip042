@@ -3,7 +3,14 @@ import { log } from "../lib/logger.js";
 import { adminClient } from "../lib/supabase.js";
 import { invalidateHolidayCache } from "../services/holidays.service.js";
 import { runAnalysis } from "../services/analysis.service.js";
-import { holidaySeed, SMALL_LESSEE_SEED, victimSeed, buildScenario, type ScenarioKey } from "./fixtures.js";
+import {
+  holidaySeed,
+  SMALL_LESSEE_SEED,
+  victimSeed,
+  buildScenario,
+  scenarioDates,
+  type ScenarioKey,
+} from "./fixtures.js";
 import { clearDocumentScenarios, setDocumentScenario } from "./extraction.js";
 import { MOCK_DEFAULT_USER_ID, resetMockData } from "./client.js";
 import { store } from "./store.js";
@@ -62,8 +69,9 @@ export async function seedSampleCases(
 
   for (const key of scenarios) {
     const bundle = buildScenario(key, today);
-    const contractDate = addDays(today, 14) as DateOnly;
-    const balanceDate = addDays(today, 42) as DateOnly;
+    // 계약서 초안 픽스처와 **같은 값**을 써야 한다 — 따로 계산하면 어긋나서
+    // "계약서의 잔금일이 입력한 날짜와 달라요" 가 뜬다. (fixtures.ts 주석 참고)
+    const { contractDate, balanceDate } = scenarioDates(today);
 
     const inserted = await admin
       .from("cases")

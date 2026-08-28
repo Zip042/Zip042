@@ -85,6 +85,7 @@ npm test            # 364개
 | **목 모드 쿼리 빌더는 지연 실행** | `MockQuery` 는 `await` 할 때 실행됩니다. `void query` 로 부르면 **아무 일도 일어나지 않습니다**(실제로 시드가 조용히 안 돌던 버그가 있었습니다). 동기 컨텍스트에서는 `store.table()` 에 직접 쓰세요. |
 | **목 모드가 운영과 달라지는 것** | 목이 제약을 흉내내지 않으면 "목에서만 통과하는 코드"가 생깁니다. `analysis_jobs` 의 부분 unique 인덱스처럼 **동작 차이를 만드는 제약은 목에도 넣었습니다**(`UNIQUE_CONSTRAINTS`). 새 제약을 추가하면 목도 함께 맞추세요. |
 | **npm 스크립트에 `VAR=x cmd` 쓰기** | POSIX 셸 전용 문법이라 **Windows 에서 실행되지 않습니다**(cmd.exe 가 `VAR` 을 명령어로 해석). 팀원 OS 가 섞여 있으니 환경변수는 진입점 파일에서 `process.env.X ??= ...` 로 설정하세요 (`src/server.mock.ts` 참고). |
+| **응답 경로마다 모양이 다른 것** | `POST /analyze` 와 `GET /analysis` 는 **같은 모양**이어야 합니다. 한쪽에만 `judgment` 가 있으면 프론트가 폴백을 타고 금액을 0 으로 그립니다. 새 필드를 POST 응답에 추가하면 `getLatestAnalysis` 에도 반드시 추가하세요. |
 | **공유 `adminClient()` 에 세션 심기** | supabase-js 는 요청마다 `세션 토큰 ?? supabaseKey` 순으로 인증 헤더를 고릅니다. 캐시된 `adminClient()` 로 `signInWithPassword` 를 부르면 **그 순간부터 service_role 이 아니라 방금 로그인한 사용자**가 되어, 이후 모든 서버 내부 호출이 RLS 에 막힙니다. 비밀번호 로그인은 `passwordAuthClient()`(캐시 안 함)로만 하세요. |
 | **`process.env` 직접 읽기** | 모든 설정은 `src/env.ts` 의 `EnvSchema` 를 거칩니다. 직접 읽으면 오타가 검증을 통과해 **조용히 기본값·폴백으로 동작**합니다(주소 검색 키가 실제로 이 문제였습니다). 예외는 플랫폼이 주입하는 `process.env.VERCEL` 뿐입니다. |
 | **`.env` 를 라이브러리 코드에서 읽기** | `loadDotEnv()` 는 **진입점에서만** 부릅니다(`server.ts` · `scripts/*`). 라이브러리나 테스트 경로에서 부르면 테스트가 개발자의 로컬 `.env` 에 따라 다르게 동작합니다. 이미 설정된 환경변수를 덮지 않는 것도 규칙입니다 — 플랫폼 주입값이 항상 이깁니다. |
@@ -230,6 +231,14 @@ live 모드에서는 AI·공공 API 때문에 불가능한 테스트이므로, �
     사용자의 문서 업로드가 RLS 위반으로 실패. 서버 재시작 전까지 낫지 않았습니다.
     증상(업로드 실패)이 원인(로그인)과 달라 보여 진단이 오래 걸렸습니다.
     → `passwordAuthClient()` 분리 + `tests/services/auth-client-isolation.test.ts`
+13. `GET /analysis` 에만 `judgment` 가 빠져 있었음 — 프론트가 선순위 채권·보증금을
+    **0원으로 표시**. 결과 화면을 새로고침한 사용자에게 "선순위 채권 0만원"이 보였고,
+    이는 "빚이 없는 안전한 집"으로 읽힌다(원칙 2 가 화면에서 깨진 사례).
+    → `getLatestAnalysis` 에서 judgment·badge·burdenGauge 재계산 + POST/GET 대조 테스트
+14. 목 시나리오 픽스처의 잔금일이 `today + 42` 고정이라, 그 날이 주말·공휴일이면
+    **그날만 CI 가 깨짐**(2026-10-09 한글날). 게다가 검사 건과 계약서가 날짜를 따로
+    계산해 어긋날 수 있었음 → `scenarioDates()` 한 곳으로 모으고 업무일 보정,
+    400일치 검증 테스트 추가
 12. **AI 판독이 한 번도 동작한 적이 없었음** — SDK 의 `betaZodOutputFormat` 이 내부에서
     zod 4 API(`z.toJSONSchema`)를 부르는데 이 저장소는 zod 3 이라 즉시 예외. SDK peer 가
     `^3.25.0 || ^4.0.0` 이라 설치는 조용히 성공했고, **키가 없어 실호출을 못 해 본 동안**

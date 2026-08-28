@@ -25,6 +25,20 @@ export function WhatWeCheck({ doc, bare }: { doc: DocumentCheck; bare?: boolean 
       </summary>
 
       <div className="px-4 pb-4 pt-1">
+        {/*
+          자동 판독을 아직 안 붙인 서류입니다. 목록을 "우리가 확인합니다"로 읽히게
+          두면 거짓말이 되므로, 무엇을 봐야 하는지의 체크리스트라고 먼저 밝힙니다.
+        */}
+        {doc.manualOnly && (
+          <p className="mb-3 rounded-xl bg-warn-50 px-3.5 py-3 text-[12.5px] leading-relaxed text-warn-600">
+            이 서류는 <strong className="font-semibold">아직 자동으로 읽지 않습니다.</strong> 올려두면
+            보관되지만 판정에는 반영되지 않아요. 아래 항목을 직접 확인하시거나 중개사에게 물어보세요.
+          </p>
+        )}
+
+        <p className="mb-2 text-[12px] font-semibold text-ink-700">
+          {doc.manualOnly ? "직접 확인할 항목" : "확인하는 항목"}
+        </p>
         <ul className="space-y-1.5">
           {doc.checks.map((c) => (
             <li key={c} className="flex gap-2 text-[13px] leading-relaxed text-ink-700">

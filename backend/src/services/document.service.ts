@@ -146,15 +146,40 @@ export async function purgeCaseFiles(caseId: string): Promise<void> {
 
   const { data, error } = await admin
     .from("documents")
-    .select("id,storage_path")
+    .select("id,storage_path,status")
     .eq("case_id", caseId);
   if (error) {
     log.error("판독 후 원본 삭제: 문서 조회 실패", { caseId, message: error.message });
     return;
   }
 
-  const paths = (data ?? [])
-    .map((d) => (d as { storage_path: string | null }).storage_path)
+  /**
+   * **판독에 실패한 문서는 남긴다.**
+   *
+   * AI 호출이 일시적으로 실패했는데 원본까지 지우면 재시도가 영원히 불가능해진다
+   * (캐시된 판독 결과도 없고 파일도 없으니, 다시 분석해도 같은 자리에서 막힌다).
+   * 사용자는 검사 건을 처음부터 다시 만드는 수밖에 없다 — 실제로 그 막다른 길을
+   * 만들어 놓고 확인했다.
+   *
+   * 그래서 `failed`(판독 실패) · `processing`(중간에 끊김)만 남기고 나머지는 지운다.
+   * `parsed` 는 구조화된 결과가 `document_extractions` 에 있으니 원본이 필요 없고,
+   * `uploaded` 로 남는 건축물대장·확정일자는 애초에 판독 대상이 아니므로
+   * (아래 `ensureExtractions` 의 skip 참고) 갖고 있을 이유가 없다.
+   * "성공한 것만 지운다"로 하면 이 둘이 영원히 안 지워져 삭제 약속이 깨진다.
+   */
+  const RETRYABLE = new Set(["failed", "processing"]);
+  const rows = (data ?? []) as { storage_path: string | null; status: string }[];
+  const purgeable = rows.filter((d) => !RETRYABLE.has(d.status));
+  const kept = rows.length - purgeable.length;
+  if (kept > 0) {
+    log.warn("판독 실패 문서는 원본을 남깁니다 — 재시도가 가능해야 합니다", {
+      caseId,
+      kept,
+    });
+  }
+
+  const paths = purgeable
+    .map((d) => d.storage_path)
     .filter((p): p is string => !!p);
   if (paths.length === 0) return;
 

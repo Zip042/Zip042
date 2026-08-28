@@ -1,4 +1,4 @@
-import { addDays, addMonths, type DateOnly } from "../lib/date.js";
+import { addDays, addMonths, nextBusinessDay, type DateOnly } from "../lib/date.js";
 import type {
   BrokerageStatementExtraction,
   LeaseDraftExtraction,
@@ -146,14 +146,35 @@ function baseBrokerage(
   };
 }
 
+/**
+ * 시나리오 검사 건의 계약일·잔금일.
+ *
+ * **검사 건(cases)과 계약서 초안(lease) 이 반드시 같은 값을 써야 한다.** 두 곳에서
+ * 따로 계산하다가 어긋나면 `DOC_BALANCE_DATE_MISMATCH`(계약서 잔금일이 입력과 다름)가
+ * 뜬다 — 시나리오가 의도하지 않은 위험이다. 실제로 그렇게 깨뜨려 봤다.
+ *
+ * 잔금일은 **업무일**로 맞춘다. `today + 42` 를 그대로 쓰면 그 날이 주말·공휴일에
+ * 걸리는 날에만 CI 가 깨진다. 판정 자체는 옳다 — 잔금일이 공휴일이면 경고하는 게
+ * 이 서비스의 기능이다. 다만 시나리오는 등기부 위험을 보려는 것인데 일정 경고가
+ * 섞여 등급이 밀리는 게 문제다. (2026-10-09 한글날에 걸린 날 실제로 깨졌다.)
+ */
+export function scenarioDates(today: DateOnly): {
+  contractDate: DateOnly;
+  balanceDate: DateOnly;
+} {
+  return {
+    contractDate: addDays(today, 14),
+    balanceDate: nextBusinessDay(addDays(today, 42), mockHolidaysAround(today)),
+  };
+}
+
 function baseLease(
   today: DateOnly,
   depositKrw: number,
   monthlyRentKrw: number,
   overrides: Partial<LeaseDraftExtraction> = {},
 ): LeaseDraftExtraction {
-  const contractDate = addDays(today, 14);
-  const balanceDate = addDays(today, 42);
+  const { contractDate, balanceDate } = scenarioDates(today);
   const down = Math.round(depositKrw * 0.1);
   return {
     address: ADDRESS,
@@ -475,6 +496,16 @@ export function guessScenarioFromFileName(fileName: string | null | undefined): 
 
 /** 양력 고정 공휴일. 마이그레이션의 시드와 동일한 목록. */
 const FIXED_SOLAR = ["01-01", "03-01", "05-05", "06-06", "08-15", "10-03", "10-09", "12-25"];
+
+/** 픽스처 날짜 보정용 공휴일 집합. `holidaySeed` 와 같은 목록에서 만든다. */
+function mockHolidaysAround(today: DateOnly): ReadonlySet<DateOnly> {
+  const year = Number(today.slice(0, 4));
+  const out = new Set<DateOnly>();
+  for (const y of [year, year + 1]) {
+    for (const md of FIXED_SOLAR) out.add(`${y}-${md}` as DateOnly);
+  }
+  return out;
+}
 
 export function holidaySeed(fromYear: number, toYear: number): { holiday_date: string; name: string; is_synced: boolean }[] {
   const names: Record<string, string> = {

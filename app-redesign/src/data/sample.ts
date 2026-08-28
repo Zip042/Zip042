@@ -24,8 +24,9 @@ export interface JudgmentResult {
   contractable: boolean;
   judgments: Judgment[];
   calculation: {
-    seniorClaimsKrw: number;
-    depositKrw: number;
+    /** 모르면 null. 0 을 쓰면 '빚이 없다'로 읽힌다. */
+  seniorClaimsKrw: number | null;
+    depositKrw: number | null;
     marketPriceKrw: number | null;
     burdenRatio: number | null;
     computable: boolean;

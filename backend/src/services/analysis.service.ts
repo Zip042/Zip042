@@ -580,7 +580,9 @@ export async function getLatestAnalysis(db: Db, caseId: string) {
   if (!data) return null;
 
   const analysisId = data.id as string;
-  const [findings, terms] = await Promise.all([
+  // 보증금은 저장된 payload 에 없다(판정에 쓰인 값은 valuation 안에 녹아 있다).
+  // judgment 의 "내 보증금" 칸을 채우려면 원본을 다시 읽어야 한다.
+  const [findings, terms, caseRow] = await Promise.all([
     db
       .from("analysis_findings")
       .select("code,category,kind,severity,weight,title,description,action,evidence")
@@ -591,7 +593,40 @@ export async function getLatestAnalysis(db: Db, caseId: string) {
       .select("code,category,priority,required,title,clause_text,reason,triggered_by")
       .eq("analysis_id", analysisId)
       .order("priority", { ascending: true }),
+    db.from("cases").select("deposit_krw").eq("id", caseId).maybeSingle(),
   ]);
+  const depositKrw = (caseRow.data?.deposit_krw as number | undefined) ?? null;
+
+  const payload = data.payload as Record<string, unknown>;
+  const storedFindings = (findings.data ?? []) as unknown as Finding[];
+
+  /**
+   * `judgment` · `badge` · `burdenGauge` 는 저장하지 않고 **응답할 때 계산**한다.
+   * 화면용 표현이라 규칙이 바뀌면 다시 계산되는 편이 맞기 때문이다.
+   *
+   * 그래서 여기서도 POST /analyze 와 **똑같이** 만들어야 한다. 안 그러면 같은 판정인데
+   * 조회 경로에서만 `judgment` 가 사라진다. 실제로 그 버그가 있었다 — 프론트가
+   * `judgment` 없음을 만나 선순위 채권·보증금을 **0원으로 표시**했고, 0원은
+   * "빚이 없는 안전한 집"으로 읽힌다. 이 서비스에서 가장 위험한 오독이다.
+   */
+  const verdictPayload = payload.verdict as Parameters<typeof buildJudgmentResult>[0]["verdict"];
+  const valuationPayload = payload.valuation as
+    | { seniorClaimsKrw?: number; marketPrice?: { source?: string; estimatedKrw?: number } }
+    | undefined;
+  const marketPrice = valuationPayload?.marketPrice;
+  const judgment = verdictPayload
+    ? buildJudgmentResult({
+        verdict: verdictPayload,
+        findings: storedFindings,
+        seniorClaimsKrw: valuationPayload?.seniorClaimsKrw ?? 0,
+        depositKrw: depositKrw ?? 0,
+        // POST 경로와 같은 규칙 — 시세를 못 구했으면 0 이 아니라 null 이다.
+        marketPriceKrw:
+          !marketPrice || marketPrice.source === "unavailable"
+            ? null
+            : (marketPrice.estimatedKrw ?? null),
+      })
+    : undefined;
 
   return {
     version: data.version,
@@ -601,8 +636,17 @@ export async function getLatestAnalysis(db: Db, caseId: string) {
     contractable: data.contractable,
     headline: data.headline,
     summary: data.summary,
-    ...(data.payload as Record<string, unknown>),
-    findings: findings.data ?? [],
+    ...payload,
+    ...(judgment
+      ? {
+          judgment,
+          badge: verdictBadge(verdictPayload.verdict),
+          burdenGauge: burdenGauge(
+            payload.valuation as Parameters<typeof burdenGauge>[0],
+          ),
+        }
+      : {}),
+    findings: storedFindings,
     specialTerms: (terms.data ?? []).map((t) => ({
       code: t.code,
       category: t.category,

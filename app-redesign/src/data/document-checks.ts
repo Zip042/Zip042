@@ -31,6 +31,15 @@ export interface DocumentCheck {
   constraint?: string;
   /** 발급처 링크 */
   link?: { label: string; href: string };
+  /**
+   * 아직 자동 판독하지 않는 서류.
+   *
+   * 백엔드 `ensureExtractions` 가 `building_ledger` · `other` 를 건너뜁니다.
+   * 올려두면 보관은 되지만 판정에는 반영되지 않습니다. 화면이 "확인합니다"라고
+   * 말해 놓고 실제로 안 보면 거짓말이 되므로, 여기서 사실대로 표시합니다.
+   * 판독을 붙이면 이 플래그를 지우세요.
+   */
+  manualOnly?: boolean;
 }
 
 /** 1번. 필수 서류이므로 추가 서류 목록과 분리되어 있습니다. */
@@ -58,7 +67,8 @@ export const OPTIONAL_CHECKS: DocumentCheck[] = [
     id: "fixed-date",
     docType: "other",
     title: "확정일자 부여현황",
-    why: "등기부에 없는 선순위 세입자가 있는지 확인합니다",
+    why: "직접 확인하실 항목입니다 — 자동 판독은 아직 준비 중이에요",
+    manualOnly: true,
     checks: [
       "나보다 앞선 임차인의 보증금 총액",
       "확정일자 부여 건수 (같은 건물 임차인 수)",
@@ -68,8 +78,10 @@ export const OPTIONAL_CHECKS: DocumentCheck[] = [
     ],
     catches:
       "등기부에 안 나오는 빚을 봅니다. 다가구주택은 건물 전체가 등기 하나라 앞 세입자 보증금이 등기부에 한 줄도 안 뜹니다. 이 서류가 그 구멍을 메웁니다.",
+    // 판정 로직이 이 서류를 아직 안 보므로 "미제출은 확인 필요로 판정합니다" 같은
+    // 말을 쓰면 안 됩니다. 열람 조건이라는 사실만 알려줍니다.
     constraint:
-      "계약 전에는 임대인 동의가 있어야 열람됩니다(주택임대차보호법 제3조의6). 동의를 안 해주는 것 자체가 신호이므로, 미제출은 「판단 불가」가 아니라 「확인 필요」로 판정합니다.",
+      "계약 전에는 임대인 동의가 있어야 열람됩니다(주택임대차보호법 제3조의6). 동의를 안 해주는 것 자체가 위험 신호이니, 거절당했다면 그 사실을 기억해 두세요.",
     link: { label: "정부24", href: "https://www.gov.kr" },
   },
   {
@@ -92,7 +104,8 @@ export const OPTIONAL_CHECKS: DocumentCheck[] = [
     id: "ledger",
     docType: "building_ledger",
     title: "건축물대장",
-    why: "위반건축물이면 보증보험이 거절될 수 있습니다",
+    why: "직접 확인하실 항목입니다 — 자동 판독은 아직 준비 중이에요",
+    manualOnly: true,
     checks: [
       "위반건축물 등재 여부",
       "주용도 (근린생활시설 · 업무시설 여부)",

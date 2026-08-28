@@ -87,8 +87,25 @@ export default function AnalyzeResult() {
         <h2 className="text-[15px] font-bold">보증금을 돌려받을 수 있을까요</h2>
 
         <dl className="mt-5 space-y-3">
-          <CalcRow label="선순위 채권 (채권최고액)" value={formatMan(r.calculation.seniorClaimsKrw)} />
-          <CalcRow label="내 보증금" value={formatMan(r.calculation.depositKrw)} />
+          {/* 모르는 금액을 0 으로 그리지 않습니다 — "0만원"은 "빚이 없다"로 읽힙니다. */}
+          <CalcRow
+            label="선순위 채권 (채권최고액)"
+            value={
+              r.calculation.seniorClaimsKrw === null
+                ? "확인 못 함"
+                : formatMan(r.calculation.seniorClaimsKrw)
+            }
+            muted={r.calculation.seniorClaimsKrw === null}
+          />
+          <CalcRow
+            label="내 보증금"
+            value={
+              r.calculation.depositKrw === null
+                ? "확인 못 함"
+                : formatMan(r.calculation.depositKrw)
+            }
+            muted={r.calculation.depositKrw === null}
+          />
           <CalcRow
             label="시세"
             value={

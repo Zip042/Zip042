@@ -146,6 +146,8 @@ describe("목 모드 기본", () => {
 
 describe("검사 건 생성 → 문서 등록 → 분석 (전체 파이프라인)", () => {
   let caseId: string;
+  /** POST /analyze 의 judgment. 아래 GET 테스트가 같은 값인지 대조한다. */
+  let postJudgment: JudgmentSnapshot | null = null;
 
   it("검사 건을 만들 수 있다 (만원 단위 입력)", async () => {
     const res = await app.request("/v1/cases", {
@@ -318,14 +320,35 @@ describe("검사 건 생성 → 문서 등록 → 분석 (전체 파이프라인
 
     // 판정의 한계를 반드시 알린다
     expect(analysis.caveats.some((c) => c.includes("법률 자문이 아닙니다"))).toBe(true);
+
+    // 아래 GET 테스트와 대조하기 위해 보관한다.
+    postJudgment = (analysis as unknown as { judgment?: JudgmentSnapshot }).judgment ?? null;
+    expect(postJudgment).not.toBeNull();
   });
 
   it("저장된 결과를 재계산 없이 다시 읽을 수 있다", async () => {
     const res = await app.request(`/v1/cases/${caseId}/analysis`, { headers: AUTH });
     expect(res.status).toBe(200);
-    const { analysis } = await json<{ analysis: { version: number; specialTerms: unknown[] } }>(res);
+    const { analysis } = await json<{
+      analysis: { version: number; specialTerms: unknown[]; judgment?: JudgmentSnapshot; badge?: unknown };
+    }>(res);
     expect(analysis.version).toBe(1);
     expect(analysis.specialTerms.length).toBeGreaterThan(0);
+
+    /**
+     * POST /analyze 와 **같은 모양**이어야 한다.
+     *
+     * 실제로 GET 에만 `judgment` 가 빠져 있었다. 프론트는 `judgment` 가 없으면
+     * 선순위 채권·보증금을 **0원으로 표시**했고, 결과 화면을 새로고침한 사용자에게
+     * "선순위 채권 0만원"이 보였다 — 전세사기 서비스에서 "빚이 없는 안전한 집"으로
+     * 읽히는 가장 위험한 오독이다. 두 경로를 여기서 묶어 둔다.
+     */
+    expect(analysis.judgment).toBeDefined();
+    expect(analysis.badge).toBeDefined();
+    expect(analysis.judgment!.judgments.length).toBe(postJudgment!.judgments.length);
+    expect(analysis.judgment!.calculation).toEqual(postJudgment!.calculation);
+    // 금액을 0 으로 채우지 않았는지 확인한다.
+    expect(analysis.judgment!.calculation.depositKrw).toBeGreaterThan(0);
   });
 
   it("재분석하면 version 이 올라간다", async () => {
@@ -915,6 +938,11 @@ describe("계약서 초안", () => {
     });
   });
 });
+
+interface JudgmentSnapshot {
+  judgments: unknown[];
+  calculation: Record<string, number | null>;
+}
 
 interface AnalysisShape {
   verdict: {

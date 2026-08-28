@@ -183,8 +183,11 @@ function toJudgmentResult(a: BackendAnalysis): JudgmentResult {
       contractable: a.verdict.contractable,
       judgments: [],
       calculation: {
-        seniorClaimsKrw: 0,
-        depositKrw: 0,
+        // **0 을 쓰면 안 됩니다.** 화면에 "선순위 채권 0만원"으로 나오고, 그건
+        // "빚이 없는 안전한 집"으로 읽힙니다. 모르는 것은 null 로 두고 화면이
+        // "확인 못 함"이라고 말하게 합니다. (백엔드 원칙 2 와 같은 규칙입니다.)
+        seniorClaimsKrw: null,
+        depositKrw: null,
         marketPriceKrw: null,
         burdenRatio: null,
         computable: false,
