@@ -91,7 +91,7 @@ function Hero() {
         <div>
           <span className="rise inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-[12.5px] font-semibold text-brand-700 backdrop-blur">
             <span className="size-1.5 animate-pulse rounded-full bg-brand-500" />
-            전세사기 예방 서비스
+            청년 전세사기 예방 서비스
           </span>
 
           <h1
