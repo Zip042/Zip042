@@ -205,7 +205,7 @@ const checks: Check[] = [
        */
       const targets: { label: string; path: string; dataset: string }[] = [
         { label: "연립·다세대 매매", path: "/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade", dataset: "15126467" },
-        { label: "아파트 매매", path: "/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev", dataset: "15126469" },
+        { label: "아파트 매매", path: "/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade", dataset: "15126469" },
         { label: "오피스텔 매매", path: "/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade", dataset: "15126475" },
         { label: "단독·다가구 매매", path: "/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade", dataset: "15126472" },
       ];
@@ -267,7 +267,7 @@ const checks: Check[] = [
         return fail(
           detail,
           `포털에서 다음을 활용신청하세요: ${notApproved.join(", ")}. ` +
-            "승인 전까지 해당 유형은 시세가 나오지 않습니다(판정은 '시세 확인 못 함'으로 끝납니다).",
+            "포털은 **경로가 틀려도** 같은 메시지를 줍니다 — 신청이 돼 있다면 ENDPOINTS 의 오퍼레이션명을 먼저 의심하세요. 승인 전까지 해당 유형은 시세가 나오지 않습니다.",
         );
       }
       return ok(detail);

@@ -27,7 +27,10 @@ import type { BuildingKind } from "../domain/valuation.js";
  */
 const ENDPOINTS: Record<string, string> = {
   // 아파트 매매 (15126469)
-  apartment: "/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev",
+  // ⚠️ `...AptTradeDev` 가 아니다. Dev 는 별도 서비스이고 이 키로는 403 이 온다.
+  //    포털이 **경로가 틀려도 "등록되지 않은 서비스키"** 로 답하기 때문에, 오랫동안
+  //    "활용신청이 안 됐다"고 오해하고 있었다. 실측으로 확인한 경로다.
+  apartment: "/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
   // 오피스텔 매매 (15126475 계열)
   officetel: "/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
   // 연립·다세대 매매 (15126467) — 빌라 시세의 최핵심
