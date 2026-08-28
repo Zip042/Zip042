@@ -14,11 +14,26 @@ import { Button, Card, PageHead, Steps } from "@/components/ui";
 import { WhatWeCheck } from "@/components/WhatWeCheck";
 import { REGISTRY_CHECK, UPLOAD_NOTICE } from "@/data/document-checks";
 import { useFlow } from "@/state/flow";
-import { createCase, uploadDocument } from "@/lib/zip042";
+import { createCase, uploadDocument, type BuildingType } from "@/lib/zip042";
 import { ApiError } from "@/lib/api";
 
 /** 파일 상한. 백엔드 스키마와 같은 값입니다(base64 로 부풀 것을 감안한 값). */
 const MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * 건물 유형. **시세 조회에 반드시 필요합니다.**
+ *
+ * 실거래가 API 는 유형별로 엔드포인트가 다릅니다. 유형을 모르면 조회 자체를
+ * 못 하고, 그러면 "보증금이 집값보다 큰가"(깡통전세)를 계산할 수 없습니다.
+ * 그래서 주소·보증금과 같은 급으로 받습니다.
+ */
+const BUILDING_TYPES: { value: BuildingType; label: string; hint: string }[] = [
+  { value: "multi_family", label: "빌라·연립·다세대", hint: "가장 흔한 전세 유형" },
+  { value: "apartment", label: "아파트", hint: "" },
+  { value: "officetel", label: "오피스텔", hint: "" },
+  { value: "multi_household", label: "다가구·단독", hint: "건물 전체가 등기 하나" },
+  { value: "studio", label: "원룸", hint: "" },
+];
 
 export default function Analyze() {
   const nav = useNavigate();
@@ -28,6 +43,7 @@ export default function Analyze() {
   const [dragging, setDragging] = useState(false);
   const [address, setAddress] = useState("");
   const [depositMan, setDepositMan] = useState("");
+  const [buildingType, setBuildingType] = useState<BuildingType>("multi_family");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +69,7 @@ export default function Analyze() {
       reset();
       const caseId = await createCase({
         roadAddress: address.trim(),
+        buildingType,
         depositMan: deposit,
       });
       await uploadDocument(caseId, file, "registry");
@@ -181,6 +198,37 @@ export default function Analyze() {
             <span className="ml-2 shrink-0 text-[13.5px] text-ink-500">만원</span>
           </div>
         </div>
+      </div>
+
+      {/*
+        유형이 없으면 시세를 못 구하고, 시세가 없으면 이 서비스의 핵심 계산
+        ("보증금이 집값보다 큰가")이 통째로 못 돕니다. 그래서 주소·보증금과
+        나란히 둡니다.
+      */}
+      <div className="mt-4">
+        <label className="mb-2 block text-[13.5px] font-semibold">건물 유형</label>
+        <div className="flex flex-wrap gap-2">
+          {BUILDING_TYPES.map((t) => {
+            const on = buildingType === t.value;
+            return (
+              <button
+                key={t.value}
+                onClick={() => setBuildingType(t.value)}
+                title={t.hint || undefined}
+                className={`h-10 rounded-xl border px-3.5 text-[13.5px] font-medium transition-colors ${
+                  on
+                    ? "border-brand-400 bg-brand-50 text-brand-700"
+                    : "border-line bg-white text-ink-500 hover:bg-surface"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[12.5px] text-ink-300">
+          시세를 조회하려면 필요합니다. 등기부 표제부나 계약서에 적힌 유형을 고르세요.
+        </p>
       </div>
 
       <div className="mt-6 rounded-xl bg-surface px-5 py-4">

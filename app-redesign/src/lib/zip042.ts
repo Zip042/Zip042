@@ -52,8 +52,24 @@ interface BackendAnalysis {
 
 /* ── 검사 건 ─────────────────────────────────────────────────────────── */
 
+/**
+ * 시세 조회가 되는 건물 유형.
+ *
+ * **이 값을 안 보내면 시세 조회 자체가 안 됩니다.** 백엔드는 유형이 없으면
+ * 등기부로 추정하는데, 집합건물(아파트·빌라·오피스텔)은 `other` 로 떨어지고
+ * `other` 에는 실거래가 엔드포인트가 없어 조회를 건너뜁니다. 그러면 모든 판정이
+ * "시세를 확인하지 못했어요"로 끝나 깡통전세 계산이 아예 돌지 않습니다.
+ */
+export type BuildingType =
+  | "apartment"
+  | "multi_family"
+  | "officetel"
+  | "multi_household"
+  | "studio";
+
 export interface CreateCaseInput {
   roadAddress: string;
+  buildingType: BuildingType;
   /** 만원 단위. 백엔드가 amountUnit 으로 정규화합니다. */
   depositMan: number;
   monthlyRentMan?: number;
@@ -66,6 +82,7 @@ export async function createCase(input: CreateCaseInput): Promise<string> {
   const res = await api.post<{ case: { id: string } }>("/v1/cases", {
     title: input.roadAddress,
     roadAddress: input.roadAddress,
+    buildingType: input.buildingType,
     deposit: input.depositMan,
     ...(input.monthlyRentMan ? { monthlyRent: input.monthlyRentMan } : {}),
     amountUnit: "man",
