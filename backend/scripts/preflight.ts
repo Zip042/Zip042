@@ -193,54 +193,85 @@ const checks: Check[] = [
         numOfRows: "5",
         pageNo: "1",
       });
-      const endpoint = new URL("/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade", base);
-      const url = `${endpoint.origin}${endpoint.pathname}?serviceKey=${serviceKey}&${rest.toString()}`;
+      /**
+       * **네 개를 모두 확인한다.**
+       *
+       * 공공데이터포털은 데이터셋마다 따로 승인한다. 예전에는 연립다세대 하나만
+       * 검사해서, 아파트·오피스텔·단독다가구가 403 인데도 이 검사는 ✅ 를 냈다.
+       * "확인했다"가 거짓이 되는 검사는 없는 것만 못하다.
+       *
+       * 유형별로 다른 엔드포인트를 쓰므로, 하나가 막히면 그 유형의 시세가
+       * 통째로 안 나온다 — 특히 단독·다가구는 전세사기 핵심 유형이다.
+       */
+      const targets: { label: string; path: string; dataset: string }[] = [
+        { label: "연립·다세대 매매", path: "/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade", dataset: "15126467" },
+        { label: "아파트 매매", path: "/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev", dataset: "15126469" },
+        { label: "오피스텔 매매", path: "/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade", dataset: "15126475" },
+        { label: "단독·다가구 매매", path: "/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade", dataset: "15126472" },
+      ];
 
-      try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-        const body = await res.text();
+      const notApproved: string[] = [];
+      const results: string[] = [];
+      let parseChecked = false;
 
-        if (!res.ok) {
-          return fail(`HTTP ${res.status}`, "오퍼레이션 경로(ENDPOINTS)가 맞는지 포털에서 확인하세요.");
+      for (const t of targets) {
+        const endpoint = new URL(t.path, base);
+        const url = `${endpoint.origin}${endpoint.pathname}?serviceKey=${serviceKey}&${rest.toString()}`;
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+          const body = await res.text();
+          const code = tagValue(body, ["resultCode", "returnReasonCode"]);
+          const msg = tagValue(body, ["resultMsg", "returnAuthMsg", "errMsg"]);
+
+          // 미승인은 HTTP 403 + "등록되지 않은 서비스키" 또는 응답코드 30 으로 온다.
+          const unregistered =
+            res.status === 403 || code === "30" || (msg ?? "").includes("등록되지 않은");
+          if (unregistered) {
+            notApproved.push(`${t.label}(${t.dataset})`);
+            results.push(`❌ ${t.label} — 활용신청 안 됨`);
+            continue;
+          }
+          if (!res.ok) {
+            results.push(`❌ ${t.label} — HTTP ${res.status}`);
+            continue;
+          }
+          if (code && !["00", "000", "0000"].includes(code)) {
+            results.push(`❌ ${t.label} — 응답코드 ${code} ${msg ?? ""}`);
+            continue;
+          }
+
+          const n = (body.match(/<item>/g) ?? []).length;
+          results.push(`✅ ${t.label} — 거래 ${n}건`);
+
+          // 파싱은 표본이 있는 첫 응답에서 한 번만 확인하면 충분하다(응답 형식이 같다).
+          if (n > 0 && !parseChecked) {
+            parseChecked = true;
+            const firstItem = /<item>([\s\S]*?)<\/item>/.exec(body)?.[1] ?? "";
+            const amount = tagValue(firstItem, ["dealAmount", "거래금액"]);
+            const area = tagValue(firstItem, ["excluUseAr", "전용면적"]);
+            if (!amount || !area) {
+              return fail(
+                `${t.label} 파싱 실패 (거래금액=${amount ?? "없음"}, 전용면적=${area ?? "없음"})`,
+                "market-price.service.ts 의 extractTag 후보 필드명을 실제 응답에 맞게 추가하세요.",
+              );
+            }
+            results[results.length - 1] += ` · 파싱 성공 (${amount}만원 / ${area}㎡)`;
+          }
+        } catch (err) {
+          results.push(`❌ ${t.label} — ${reason(err)}`);
         }
-
-        // ⚠️ 여기가 이 검사의 핵심 — 키 오류가 200 으로 온다.
-        const code = tagValue(body, ["resultCode", "returnReasonCode"]);
-        const msg = tagValue(body, ["resultMsg", "returnAuthMsg", "errMsg"]);
-        if (code && !["00", "000", "0000"].includes(code)) {
-          const hint =
-            code === "30"
-              ? "등록되지 않은 키입니다. 포털에서 활용신청 승인 여부를 확인하세요(승인까지 시간이 걸립니다)."
-              : code === "22"
-                ? "일일 트래픽 초과입니다. 키는 유효합니다."
-                : "포털의 '활용신청 상세'에서 이 API 를 신청했는지, 오퍼레이션명이 맞는지 확인하세요.";
-          return fail(`응답 코드 ${code} — ${msg ?? "사유 미상"}`, hint);
-        }
-
-        const itemCount = (body.match(/<item>/g) ?? []).length;
-        const totalCount = tagValue(body, ["totalCount"]);
-        if (itemCount === 0) {
-          // 키는 유효하지만 표본이 없다. 실패가 아니다 — 다만 확인이 덜 됐다.
-          return ok(
-            `키 유효 · ${dealYmd} 대전 서구 거래 0건 (totalCount=${totalCount ?? "?"}) — 응답 형식은 정상`,
-          );
-        }
-
-        // 파서가 실제로 값을 뽑아내는지까지 확인한다. 필드명이 바뀌면 여기서 드러난다.
-        const firstItem = /<item>([\s\S]*?)<\/item>/.exec(body)?.[1] ?? "";
-        const amount = tagValue(firstItem, ["dealAmount", "거래금액"]);
-        const area = tagValue(firstItem, ["excluUseAr", "전용면적"]);
-        if (!amount || !area) {
-          return fail(
-            `거래 ${itemCount}건 수신 · 필드 파싱 실패 (거래금액=${amount ?? "없음"}, 전용면적=${area ?? "없음"})`,
-            "market-price.service.ts 의 extractTag 후보 필드명을 실제 응답에 맞게 추가하세요.",
-          );
-        }
-
-        return ok(`키 유효 · ${dealYmd} 거래 ${itemCount}건 · 파싱 성공 (${amount}만원 / ${area}㎡)`);
-      } catch (err) {
-        return fail(reason(err));
       }
+
+      const detail = [`${dealYmd} 대전 서구`, ...results].join("  |  ");
+      if (notApproved.length > 0) {
+        return fail(
+          detail,
+          `포털에서 다음을 활용신청하세요: ${notApproved.join(", ")}. ` +
+            "승인 전까지 해당 유형은 시세가 나오지 않습니다(판정은 '시세 확인 못 함'으로 끝납니다).",
+        );
+      }
+      return ok(detail);
+
     },
   },
 
