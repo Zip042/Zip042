@@ -12,10 +12,36 @@ import { isDateOnly } from "../lib/date.js";
  *  - 위험 판정은 절대 모델에 맡기지 않는다. 이 스키마에는 "위험한가?" 류의 필드가 없다.
  */
 
-const nullableDate = z
-  .string()
-  .nullable()
-  .describe("YYYY-MM-DD 형식. 문서에서 확인할 수 없으면 null");
+/**
+ * "모르겠다"를 **빈 문자열**로 받는 텍스트 필드.
+ *
+ * ## 왜 null 이 아니라 ""인가
+ *
+ * structured outputs 는 **union 타입 필드를 16개까지만** 허용한다
+ * (`Schemas contains too many parameters with union types`). `.nullable()` 은
+ * `anyOf[string, null]` 이라 전부 union 으로 세어진다. 계약서 초안 스키마가 17개라
+ * **API 가 요청 자체를 거부해 판독이 항상 실패하고 있었다.** 중첩해도 소용없다 —
+ * 한도는 중첩 필드까지 센다(실측 확인).
+ *
+ * 그래서 텍스트·날짜는 `""` 로 모름을 표현하고 **파싱 즉시 null 로 바꾼다.**
+ * 도메인에는 여전히 `string | null` 이 도착하므로 규칙 코드는 그대로다.
+ *
+ * ## 금액에는 쓰지 않는다
+ *
+ * 금액에 이 방식을 쓰면 0 을 sentinel 로 삼게 되는데, 0원은 "빚이 없다"로 읽힌다.
+ * 이 서비스에서 가장 위험한 오독이므로 금액은 union 을 유지한다(설계 원칙 2).
+ */
+const unknownableText = (desc: string) =>
+  z
+    .string()
+    .describe(`${desc} 문서에서 확인할 수 없으면 빈 문자열("")로 두세요.`)
+    .transform((v) => {
+      const t = v.trim();
+      // 모델이 "null"·"미상" 같은 말을 문자열로 적어 보내는 경우도 모름으로 취급한다.
+      return t === "" || t === "null" || t === "미상" || t === "해당없음" ? null : t;
+    });
+
+const nullableDate = unknownableText("YYYY-MM-DD 형식의 날짜.");
 
 const nullableAmount = z
   .number()
@@ -84,10 +110,10 @@ export const registryExtractionSchema = z.object({
 });
 
 export const brokerageStatementExtractionSchema = z.object({
-  address: z.string().nullable().describe("대상물건의 소재지"),
-  ownerName: z.string().nullable().describe("소유자(임대인) 성명"),
+  address: unknownableText("대상물건의 소재지."),
+  ownerName: unknownableText("소유자(임대인) 성명."),
   exclusiveAreaM2: z.number().nullable(),
-  buildingUse: z.string().nullable().describe("건축물 용도. 예: '다세대주택', '제2종근린생활시설'"),
+  buildingUse: unknownableText("건축물 용도. 예: '다세대주택', '제2종근린생활시설'."),
   isIllegalBuilding: z
     .boolean()
     .nullable()
@@ -100,10 +126,10 @@ export const brokerageStatementExtractionSchema = z.object({
     .nullable()
     .describe("다가구주택 확인서류(선순위 확정일자 현황 등)에 실제 내용이 기재되어 있으면 true"),
   priorTenantDepositKrw: nullableAmount.describe("기재된 선순위 임차보증금 총액"),
-  agentName: z.string().nullable().describe("개업공인중개사 성명"),
-  agencyName: z.string().nullable().describe("중개사무소 명칭"),
-  agentRegistrationNo: z.string().nullable().describe("등록번호"),
-  guaranteeInsurer: z.string().nullable().describe("손해배상책임 보장 기관 (공제 · 보증보험)"),
+  agentName: unknownableText("개업공인중개사 성명."),
+  agencyName: unknownableText("중개사무소 명칭."),
+  agentRegistrationNo: unknownableText("중개사무소 등록번호."),
+  guaranteeInsurer: unknownableText("손해배상책임 보장 기관(공제 · 보증보험)."),
   guaranteeAmountKrw: nullableAmount,
   guaranteeExpiresOn: nullableDate.describe("보장 기간 종료일"),
   issuedOn: nullableDate.describe("확인·설명서 작성일 또는 교부일"),
@@ -117,16 +143,13 @@ export const brokerageStatementExtractionSchema = z.object({
 });
 
 export const leaseDraftExtractionSchema = z.object({
-  address: z.string().nullable().describe("임차할 부동산의 소재지"),
-  detailAddress: z.string().nullable().describe("동 · 호수 등 상세주소. 계약서에 없으면 null"),
+  address: unknownableText("임차할 부동산의 소재지."),
+  detailAddress: unknownableText("동 · 호수 등 상세주소."),
   exclusiveAreaM2: z.number().nullable(),
-  lessorName: z.string().nullable().describe("임대인 성명"),
-  lessorAccountHolder: z
-    .string()
-    .nullable()
-    .describe("보증금 입금 계좌의 예금주 이름. 계약서에 계좌가 없으면 null"),
-  lesseeName: z.string().nullable(),
-  agentName: z.string().nullable(),
+  lessorName: unknownableText("임대인 성명."),
+  lessorAccountHolder: unknownableText("보증금 입금 계좌의 예금주 이름."),
+  lesseeName: unknownableText("임차인 성명."),
+  agentName: unknownableText("개업공인중개사 성명."),
   depositKrw: nullableAmount.describe("보증금 총액"),
   downPaymentKrw: nullableAmount.describe("계약금"),
   balanceKrw: nullableAmount.describe("잔금"),
