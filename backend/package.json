@@ -1,0 +1,46 @@
+{
+  "name": "zip042-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZIP 042 — 사회초년생을 위한 원룸 계약 안전 검사 서비스 백엔드 API (Hono + Supabase)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "dev:mock": "tsx watch src/server.mock.ts",
+    "start:mock": "node dist/src/server.mock.js",
+    "openapi": "tsx scripts/generate-openapi.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "extract": "tsx scripts/extract-once.ts",
+    "import:housing-price": "tsx scripts/import-housing-price.ts",
+    "dev:token": "tsx scripts/dev-token.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "@hono/node-server": "^1.19.0",
+    "@hono/zod-validator": "^0.7.0",
+    "@supabase/supabase-js": "^2.58.0",
+    "hono": "^4.9.0",
+    "jose": "^6.1.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^22.15.0",
+    "adm-zip": "^0.6.0",
+    "iconv-lite": "^0.7.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

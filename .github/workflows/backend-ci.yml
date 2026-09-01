@@ -1,0 +1,54 @@
+# 백엔드 타입 검사와 테스트를 모든 푸시·PR 에서 돌린다.
+#
+# 워크플로 파일은 **저장소 루트의 .github/workflows/ 에만** 둘 수 있다.
+# backend/.github/workflows/ 에 두면 GitHub 이 읽지 않아 아무것도 실행되지 않는다.
+# 그래서 파일은 루트에 두고 실행 디렉터리만 backend 로 지정한다.
+#
+# 목 모드에는 외부 의존이 하나도 없으므로, 시크릿 없이 전체 파이프라인 종단 테스트
+# (검사건 생성 → 업로드 → 판독 → 규칙 엔진 → 판정 저장 → 조회)까지 CI 에서 검증된다.
+#
+# ⚠️ preflight(`npm run preflight`)는 실제 외부 호출을 하므로 CI 에 넣지 않는다.
+#    키 도착 후 로컬에서 사람이 돌리는 용도다.
+name: backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # package-lock.json 을 그대로 따른다. CI 에서 의존성이 조용히 올라가면
+      # "로컬은 되는데 CI 만 깨지는" 상황을 재현할 수 없다.
+      - run: npm ci
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 테스트 (도메인 · HTTP · 목 모드 종단)
+        run: npm test
+
+      # OpenAPI 문서가 코드와 어긋나면 프론트엔드가 잘못된 타입으로 개발한다.
+      - name: OpenAPI 문서 최신 여부
+        run: |
+          npm run openapi
+          if ! git diff --exit-code --stat openapi.json; then
+            echo "::error::openapi.json 이 코드와 어긋납니다. 'npm run openapi' 를 실행하고 커밋하세요."
+            exit 1
+          fi
